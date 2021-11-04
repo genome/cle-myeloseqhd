@@ -1,0 +1,8 @@
+{	
+    "MyeloseqHD.JobGroup":"/cle/wdl/haloplex",
+    "MyeloseqHD.DemuxSampleSheet":"PATH",
+    "MyeloseqHD.SampleSheet":"PATH",
+    "MyeloseqHD.OutputDir":"PATH",
+    "MyeloseqHD.IlluminaDir":"PATH",
+    "MyeloseqHD.Queue":"gtac-mgi"
+}
