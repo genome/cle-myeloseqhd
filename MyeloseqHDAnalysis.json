@@ -1,0 +1,20 @@
+{	
+ 
+    "MyeloseqHDAnalysis.Cram":"PATH",
+    "MyeloseqHDAnalysis.CramIndex":"PATH",
+    "MyeloseqHDAnalysis.Name":"NAME",
+    "MyeloseqHDAnalysis.OutputDir":"PATH",
+    "MyeloseqHDAnalysis.SubDir":"PATH",
+    "MyeloseqHDAnalysis.refFasta":"/storage1/fs1/duncavagee/Active/SEQ/Chromoseq/process/refdata/hg38/all_sequences.fa",
+    "MyeloseqHDAnalysis.ReferenceDict":"/storage1/fs1/duncavagee/Active/SEQ/Chromoseq/process/refdata/hg38/all_sequences.dict",
+    "MyeloseqHDAnalysis.Vepcache":"/storage1/fs1/duncavagee/Active/SEQ/Chromoseq/process/VEP_cache", 
+    "MyeloseqHDAnalysis.HaplotectBed":"/storage1/fs1/gtac-mgi/Active/CLE/analysis/new_myeloseq/liftOver/output/myeloseq.haplotect_snppairs_hg38.041718.bed",
+    "MyeloseqHDAnalysis.CoverageBed":"/storage1/fs1/gtac-mgi/Active/CLE/analysis/new_myeloseq/git/cle-myeloseq/accessory_files/hg38/MyeloseqHD.16462-1615924889.CoverageQC.hg38.110221.bed",
+    "MyeloseqHDAnalysis.CustomAnnotationVcf":"/storage1/fs1/gtac-mgi/Active/CLE/analysis/new_myeloseq/liftOver/output/myeloseq_custom_annotations.annotated.011618.hg38.vcf.gz",
+    "MyeloseqHDAnalysis.CustomAnnotationIndex":"/storage1/fs1/gtac-mgi/Active/CLE/analysis/new_myeloseq/liftOver/output/myeloseq_custom_annotations.annotated.011618.hg38.vcf.gz.tbi",
+    "MyeloseqHDAnalysis.CustomAnnotationParameters":"MYELOSEQ,vcf,exact,0,TCGA_AC,MDS_AC,MYELOSEQBLACKLIST",
+    "MyeloseqHDAnalysis.QcMetrics":"/storage1/fs1/gtac-mgi/Active/CLE/analysis/new_myeloseq/git/cle-myeloseq/accessory_files/MyeloseqHDQCMetrics.txt",
+    "MyeloseqHDAnalysis.Description":"/storage1/fs1/gtac-mgi/Active/CLE/analysis/new_myeloseq/git/cle-myeloseq/accessory_files/MyeloseqDescription.txt",
+    "MyeloseqHDAnalysis.JobGroup":"/cle/wdl/haloplex",
+    "MyeloseqHDAnalysis.Queue":"gtac-mgi"
+}
