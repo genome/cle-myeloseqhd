@@ -27,7 +27,7 @@ workflow MyeloseqHD {
     String Description  = "/storage1/fs1/gtac-mgi/Active/CLE/analysis/new_myeloseq/git/cle-myeloseqhd/accessory_files/MyeloseqDescription.txt"
     
     String HaplotectBed = "/storage1/fs1/gtac-mgi/Active/CLE/analysis/new_myeloseq/git/cle-myeloseqhd/accessory_files/myeloseq.haplotect_snppairs_hg38.041718.bed"
-    String AmpliconBed  = "/storage1/fs1/gtac-mgi/Active/CLE/analysis/new_myeloseq/git/cle-myeloseqhd/MyeloseqHD.16462-1615924889.Amplicons.hg38.110221.bed"
+    String AmpliconBed  = "/storage1/fs1/gtac-mgi/Active/CLE/analysis/new_myeloseq/git/cle-myeloseqhd/accessory_files/MyeloseqHD.16462-1615924889.Amplicons.hg38.110221.bed"
     String CoverageBed  = "/storage1/fs1/gtac-mgi/Active/CLE/analysis/new_myeloseq/git/cle-myeloseqhd/accessory_files/MyeloseqHD.16462-1615924889.CoverageQC.hg38.110221.bed"
 
     String CustomAnnotationVcf   = "/storage1/fs1/gtac-mgi/Active/CLE/analysis/new_myeloseq/git/cle-myeloseqhd/accessory_files/myeloseq_custom_annotations.annotated.011618.hg38.vcf.gz"
