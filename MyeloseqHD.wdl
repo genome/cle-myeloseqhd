@@ -209,11 +209,7 @@ task prepare_samples {
                      my $s = $l[1].'_';
                      my $r1 = (grep /$s/, @r1)[0];
                      my $r2 = (grep /$s/, @r2)[0];
-                     my $persamplereads1 = `gunzip -c $r1 | wc -l`;
-                     chomp $persamplereads1;
-                     my $persamplereads2 = `gunzip -c $r2 | wc -l`;
-                     chomp $persamplereads2;
-                     print join("\t",$l[0],$l[1],$r1,$r2,($persamplereads1 / 4) + ($persamplereads2 / 4)),"\n";
+                     print join("\t",$l[0],$l[1],$r1,$r2),"\n";
                  }
                  close SS;' > sample_sheet.txt
      >>>
