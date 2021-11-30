@@ -114,16 +114,16 @@ workflow MyeloseqHDAnalysis {
     }
 
     call haloplex_qc {
-      input: order_by=gather_files.done,
-      refFasta=refFasta,
-      Name=Name,
-      CoverageBed=CoverageBed,
-      QcMetrics=QcMetrics,
-      Description=Description,
-      OutputDir=OutputDir,
-      SubDir=SubDir,
-      queue=Queue,
-      jobGroup=JobGroup
+        input: order_by=gather_files.done,
+               refFasta=refFasta,
+               Name=Name,
+               CoverageBed=CoverageBed,
+               QcMetrics=QcMetrics,
+               Description=Description,
+               OutputDir=OutputDir,
+               SubDir=SubDir,
+               queue=Queue,
+               jobGroup=JobGroup
     }
 
     output {
@@ -146,8 +146,8 @@ task run_freebayes {
      String queue
 
      command {
-       /usr/local/bin/freebayes -C ${default=3 MinReads} -q ${default=13 MinMapQual} -F ${default="0.0008" MinFreq} -$ ${default=4 MaxMismatch} \
-       -f ${refFasta} -t ${CoverageBed} ${Cram} > "${Name}.freebayes.vcf"
+         /usr/local/bin/freebayes -C ${default=3 MinReads} -q ${default=13 MinMapQual} -F ${default="0.0008" MinFreq} -$ ${default=4 MaxMismatch} \
+         -f ${refFasta} -t ${CoverageBed} ${Cram} > "${Name}.freebayes.vcf"
      }
 
      runtime {
@@ -174,23 +174,23 @@ task run_pindel_region {
      String jobGroup
      String queue
 
-    command <<<
-        (set -eo pipefail && /usr/local/bin/samtools view -T ${refFasta} ${Cram} ${Reg} | /opt/pindel-0.2.5b8/sam2pindel - /tmp/in.pindel ${default=250 Isize} tumor 0 Illumina-PairEnd) && \
-        /usr/bin/pindel -f ${refFasta} -p /tmp/in.pindel -c ${Reg} -o /tmp/out.pindel && \
-        /usr/bin/pindel2vcf -P /tmp/out.pindel -G -r ${refFasta} -e ${default=3 MinReads} -R ${default="GRCh38" Genome} -d ${default="GRCh38" Genome} -v /tmp/out.vcf && \
-        sed 's/END=[0-9]*;//' /tmp/out.vcf > ${Name}.pindel.vcf
-    >>>
+     command <<<
+         (set -eo pipefail && /usr/local/bin/samtools view -T ${refFasta} ${Cram} ${Reg} | /opt/pindel-0.2.5b8/sam2pindel - /tmp/in.pindel ${default=250 Isize} tumor 0 Illumina-PairEnd) && \
+         /usr/bin/pindel -f ${refFasta} -p /tmp/in.pindel -c ${Reg} -o /tmp/out.pindel && \
+         /usr/bin/pindel2vcf -P /tmp/out.pindel -G -r ${refFasta} -e ${default=3 MinReads} -R ${default="GRCh38" Genome} -d ${default="GRCh38" Genome} -v /tmp/out.vcf && \
+         sed 's/END=[0-9]*;//' /tmp/out.vcf > ${Name}.pindel.vcf
+     >>>
 
-    runtime {
-        docker_image: "registry.gsc.wustl.edu/fdu/pindel2vcf-0.6.3:1"
-        cpu: "1"
-        memory: "16 G"
-        queue: queue
-        job_group: jobGroup
-    }
-    output {
-        File vcf = "${Name}.pindel.vcf"
-    }
+     runtime {
+         docker_image: "registry.gsc.wustl.edu/fdu/pindel2vcf-0.6.3:1"
+         cpu: "1"
+         memory: "16 G"
+         queue: queue
+         job_group: jobGroup
+     }
+     output {
+         File vcf = "${Name}.pindel.vcf"
+     }
 }
 
 task bgzip_tabix {
@@ -200,8 +200,8 @@ task bgzip_tabix {
      String jobGroup
 
      command {
-          /opt/htslib/bin/bgzip -c ${Vcf} > ${Name}.bgzip_tabix.vcf.gz && \
-          /usr/bin/tabix -p vcf ${Name}.bgzip_tabix.vcf.gz
+         /opt/htslib/bin/bgzip -c ${Vcf} > ${Name}.bgzip_tabix.vcf.gz && \
+         /usr/bin/tabix -p vcf ${Name}.bgzip_tabix.vcf.gz
      }
      runtime {
          docker_image: "registry.gsc.wustl.edu/mgi-cle/myeloseqhd:v1"
@@ -332,57 +332,56 @@ task run_haplotect {
      Int? MinReads
 
      command <<<
-             /usr/bin/awk -v OFS="\t" '{ $2=$2-1; print; }' ${Bed} > /tmp/pos.bed && \
-             /usr/local/openjdk-8/bin/java -Xmx6g \
-             -jar /opt/hall-lab/gatk-package-4.1.8.1-18-ge2f02f1-SNAPSHOT-local.jar Haplotect \
-             -I ${Cram} -R ${refFasta} --sequence-dictionary ${refDict} \
-             -mmq 20 -mbq 20 -max-depth-per-sample 10000 -gstol 0.001 -mr ${default=10 MinReads} \
-             -htp ${Bed} -L /tmp/pos.bed -outPrefix ${Name}
+         /usr/bin/awk -v OFS="\t" '{ $2=$2-1; print; }' ${Bed} > /tmp/pos.bed && \
+         /usr/local/openjdk-8/bin/java -Xmx6g \
+         -jar /opt/hall-lab/gatk-package-4.1.8.1-18-ge2f02f1-SNAPSHOT-local.jar Haplotect \
+         -I ${Cram} -R ${refFasta} --sequence-dictionary ${refDict} \
+         -mmq 20 -mbq 20 -max-depth-per-sample 10000 -gstol 0.001 -mr ${default=10 MinReads} \
+         -htp ${Bed} -L /tmp/pos.bed -outPrefix ${Name}
      >>>
 
      runtime {
-             docker_image: "registry.gsc.wustl.edu/mgi-cle/haplotect:0.3"
-             cpu: "1"
-             memory: "8 G"
-             queue: queue
-             job_group: jobGroup
+         docker_image: "registry.gsc.wustl.edu/mgi-cle/haplotect:0.3"
+         cpu: "1"
+         memory: "8 G"
+         queue: queue
+         job_group: jobGroup
      }
      output {
-            File out_file = "${Name}.haplotect.txt"
-            File sites_file = "${Name}.haplotectloci.txt"
+         File out_file = "${Name}.haplotect.txt"
+         File sites_file = "${Name}.haplotectloci.txt"
      }
 }
 
 task haloplex_qc {
-  String order_by
-  String refFasta
-  String Name
-  String CoverageBed
-  String QcMetrics
-  String Description
-  String OutputDir
-  String SubDir
-  String jobGroup
-  String queue
+     String order_by
+     String refFasta
+     String Name
+     String CoverageBed
+     String QcMetrics
+     String Description
+     String OutputDir
+     String SubDir
+     String jobGroup
+     String queue
 
-  String SampleOutDir = OutputDir + "/" + SubDir
+     String SampleOutDir = OutputDir + "/" + SubDir
 
-  command {
-    /usr/bin/perl /usr/local/bin/CalculateCoverageQC.pl -r ${refFasta} -d ${SampleOutDir} -n ${Name} \
-    -t ${CoverageBed} -q ${QcMetrics} -i ${Description} && \
-    /bin/mv ./*.qc.txt ./*.qc.json ${SampleOutDir}
-  }
-  runtime {
-    docker_image: "registry.gsc.wustl.edu/mgi-cle/myeloseqhd:v1"
-    cpu: "1"
-    memory: "16 G"
-    queue: queue
-    job_group: jobGroup
-  }
-
-  output {
-    String done = stdout()
-  }
+     command {
+         /usr/bin/perl /usr/local/bin/CalculateCoverageQC.pl -r ${refFasta} -d ${SampleOutDir} -n ${Name} \
+         -t ${CoverageBed} -q ${QcMetrics} -i ${Description} && \
+         /bin/mv ./*.qc.txt ./*.qc.json ${SampleOutDir}
+     }
+     runtime {
+         docker_image: "registry.gsc.wustl.edu/mgi-cle/myeloseqhd:v1"
+         cpu: "1"
+         memory: "16 G"
+         queue: queue
+         job_group: jobGroup
+     }
+     output {
+         String done = stdout()
+     }
 }
 
 task gather_files {
