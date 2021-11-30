@@ -10,6 +10,7 @@ from Bio import pairwise2
 from scipy.stats import binom
 from scipy.stats import chisquare
 from scipy.stats import chi2_contingency
+from scipy.stats import fisher_exact
 
 def revcomp(seq):
     return seq.translate(maketrans('ACGTacgtRYMKrymkVBHDvbhd', 'TGCAtgcaYRKMyrkmBVDHbvdh'))[::-1]
@@ -49,6 +50,9 @@ parser.add_argument('-a',"--minampnumber",type=int,default=2,
 
 parser.add_argument('-p',"--strandpvalue",type=float,default=0.05,
                                         help='Binomial p-value for strand bias')
+
+parser.add_argument('-f',"--fisherstrandbias",type=float,default=20,
+                                        help='PHRED-scaled p-value for fisher strand bias filter')
 
 parser.add_argument('-s',"--minstrandreads",type=int,default=5,
                                         help='Mininum reads on each strand if sufficient strand coverage is present')
@@ -97,6 +101,9 @@ minampnumber = args.minampnumber
 # strand bias p value
 strandpvalue = args.strandpvalue
 
+# strand bias p value
+sb_pvalue = args.fisherstrandbias
+
 # strand read support
 minstrandreads = args.minstrandreads
 
@@ -137,10 +144,7 @@ vcffile.header.filters.add("AMPSupport",None,None,'Fails requirement of having >
 vcffile.header.filters.add("LowQualReadBias",None,None,'PHRED-scaled P-value > 10 of ref and alt alleles in failed vs. passing reads')
 vcffile.header.filters.add("LowVAF",None,None,'Calculated VAF <'+str(minvaf))
 vcffile.header.filters.add("StrandSupport",None,None,'Variant allele support is lacking on one strand despite adequate coverage (binomial P < '+str(strandpvalue)+' for observing at least '+str(minreads)+' given the coverage on that strand')
-#vcffile.header.formats.add("DP", 1, 'Integer', 'Total depth in passing reads')
-#vcffile.header.formats.add("AD", 'R', 'Integer', 'Raw/unfiltered number of observation for each allele')
-#vcffile.header.formats.add("RO", 1, 'Integer', 'Reference allele observation count in passing reads')
-#vcffile.header.formats.add("AO", 1, 'Integer', 'Alternate allele observation count in passing reads')
+vcffile.header.filters.add("FisherStrandBias",None,None,'PHRED-scaled Fisher exact p-value of ref and alt reads on each strand is >20')
 vcffile.header.formats.add("LQRB", 1, 'String', 'HQ read ref allele count, LQ read ref allele count, HQ read alt allele count, LQ read alt allele count,PHRED-scaled P-value for Low Quality read allele bias')
 vcffile.header.formats.add("ST", 1, 'String', 'Counts of plus and minus read counts for alt allele')
 vcffile.header.formats.add("TAMP", 1, 'Integer', 'Estimated number of Haloplex amplicons at this position')
@@ -171,6 +175,7 @@ for vline in vcffile.fetch(reopen=True):
         calls = []
         strands = []
         numreads = []
+        readids = []
         
         ############################
         #
@@ -187,6 +192,15 @@ for vline in vcffile.fetch(reopen=True):
                     
                     for read in pileup.pileups:
 
+                        # get read family size
+                        rdsize = int(read.alignment.get_tag("XV"))
+                        if rdsize < readfamilysize:
+                            continue
+                        
+                        numreads.append(rdsize)
+                        
+                        readids.append(read.alignment.query_name)
+                        
                         # count alleles by amplicon
                         if not read.is_del and not read.is_refskip and read.alignment.seq[read.query_position:read.query_position+len(rec.alts[0])] == rec.alts[0]:
                             calls.append('alt')
@@ -204,10 +218,7 @@ for vline in vcffile.fetch(reopen=True):
                         if read.alignment.has_tag("XN"):
                             amplicons.append(read.alignment.get_tag("XN"))
                         else:
-                            amplicons.append(None)
-                            
-                        # get read family size
-                        numreads.append(int(read.alignment.get_tag("XV")))
+                            amplicons.append(None)                                                    
                         
                         # skip if more than maxmismatches edit distance for this read or position in indel or 
                         if read.alignment.get_tag("SD") > maxmismatches/read.alignment.query_alignment_length or (not read.is_del and not read.is_refskip and int(read.alignment.query_qualities[read.query_position]) < minqual) or read.alignment.mapping_quality < minmapqual or not read.alignment.has_tag("XN") or not read.alignment.is_proper_pair:
@@ -251,7 +262,9 @@ for vline in vcffile.fetch(reopen=True):
             # now get all reads that map to the vicinity, including those that are softclipped (+/- 5 bp) and determine the best alignment to ref or alts
             for read in samfile.fetch(rec.contig, rec.pos-1-varlen, rec.pos+varlen,multiple_iterators = True):
 
-                if read.is_unmapped is True:
+                # get read family size
+                rdsize = int(read.get_tag("XV"))
+                if read.is_unmapped is True or rdsize < readfamilysize:
                     continue
                 
                 # get read start and end if the whole thing is mapped
@@ -266,6 +279,8 @@ for vline in vcffile.fetch(reopen=True):
                 # if the read overlaps the variant position, or would if the whole thing is aligned, then proceed
                 if readstart <= rec.pos-1 and readend >= rec.pos-1:
 
+                    readids.append(read.query_name)
+                    
                     # if there are no indels or softclips, then call it for the reference allele 
                     if len(read.cigartuples) == 1 and read.cigartuples[0][0] == 0 and read.cigartuples[0][1] == read.query_length and read.get_cigar_stats()[0][10] < varlen:
                         calls.append('ref')
@@ -321,7 +336,8 @@ for vline in vcffile.fetch(reopen=True):
                 "amplicons": amplicons,
                 "readquals": readquals,
                 "numreads": numreads,
-                "strands": strands
+                "strands": strands,
+                "names": readids
                 })
 
         # make categoricals
@@ -358,25 +374,36 @@ for vline in vcffile.fetch(reopen=True):
             ampliconcounts.append(str(a) + "," + str(passing[(passing["amplicons"]==a) & (passing["calls"]=='ref')].shape[0]) + "," + str(passing[(passing["amplicons"]==a) & (passing["calls"]=='alt')].shape[0]))                
 
         # chi-squared test on alt allele counts in failed vs. passing reads, if there are ref and alt alleles (ie, some alt reads and not homozygous) 
-        twobytwo = [[readdat[(readdat["readquals"]=='pass') & (readdat["calls"]=='ref')].shape[0],readdat[(readdat["readquals"]=='fail') & (readdat["calls"]=='ref')].shape[0]],[readdat[(readdat["readquals"]=='pass') & (readdat["calls"]=='alt')].shape[0],readdat[(readdat["readquals"]=='fail') & (readdat["calls"]=='alt')].shape[0]]]
+        readqual2x2 = [[readdat[(readdat["readquals"]=='pass') & (readdat["calls"]=='ref')].shape[0],readdat[(readdat["readquals"]=='fail') & (readdat["calls"]=='ref')].shape[0]],[readdat[(readdat["readquals"]=='pass') & (readdat["calls"]=='alt')].shape[0],readdat[(readdat["readquals"]=='fail') & (readdat["calls"]=='alt')].shape[0]]]
         failedreadbias = 0
-        failedreadbiasstr = str(twobytwo[0][0]) + "," + str(twobytwo[0][1]) + ',' + str(twobytwo[1][0]) + "," + str(twobytwo[1][1]) + ","
+        failedreadbiasstr = str(readqual2x2[0][0]) + "," + str(readqual2x2[0][1]) + ',' + str(readqual2x2[1][0]) + "," + str(readqual2x2[1][1]) + ","
         if rec.samples[0]['GT'] != (1,1) and readdat[(readdat["calls"]=='ref')].shape[0] > 0 and readdat[(readdat["calls"]=='alt')].shape[0] > 0 and readdat[(readdat["readquals"]=='pass')].shape[0] > 0 and readdat[(readdat["readquals"]=='fail')].shape[0] > 0:
-            failedreadbias = min(99,int(-10 * math.log(chi2_contingency(twobytwo)[1] or 1.258925e-10,10)))
+            failedreadbias = min(99,int(-10 * math.log(chi2_contingency(readqual2x2)[1] or 1.258925e-10,10)))
 
         failedreadbiasstr = failedreadbiasstr + str(failedreadbias)
-
+            
         # per strand VAFs
         obsvaffwd = 0.0
         obsvafrev= 0.0
+        
         plusaltreads = passing[(passing["calls"]=='alt') & (passing["strands"]=='+')].shape[0]
         minusaltreads = passing[(passing["calls"]=='alt') & (passing["strands"]=='-')].shape[0]
+
+        plusrefreads = passing[(passing["calls"]=='ref') & (passing["strands"]=='+')].shape[0]
+        minusrefreads = passing[(passing["calls"]=='ref') & (passing["strands"]=='-')].shape[0]
+
         if passing[(passing["strands"]=='+')].shape[0] > 0:
             obsvaffwd =  plusaltreads / passing[(passing["strands"]=='+')].shape[0]
 
         if passing[(passing["strands"]=='-')].shape[0] > 0:
             obsvafrev = minusaltreads / passing[(passing["strands"]=='-')].shape[0]
 
+        # Fisher exact SB (phred-scaled)
+        sb=0
+        sb2x2 = [[plusrefreads,minusrefreads],[plusaltreads,minusaltreads]]
+        if rec.samples[0]['GT'] != (1,1) and readdat[(readdat["calls"]=='ref')].shape[0] > 0 and readdat[(readdat["calls"]=='alt')].shape[0] > 0 and readdat[(readdat["strands"]=='+')].shape[0] > 0 and readdat[(readdat["strands"]=='-')].shape[0] > 0:
+            sb = min(99,int(-10 * math.log(fisher_exact(sb2x2)[1] or 1.258925e-10,10)))
+            
         # do filtering
         rec.filter.clear()
         
@@ -390,6 +417,9 @@ for vline in vcffile.fetch(reopen=True):
         if ((passing[(passing["calls"]=='alt') & (passing["strands"]=='+')].shape[0] < minstrandreads and binom.cdf(minstrandreads, passing[(passing["strands"]=='+')].shape[0],obsvaffwd, loc=0) < strandpvalue) or ((passing[(passing["calls"]=='alt') & (passing["strands"]=='-')].shape[0] < minstrandreads and binom.cdf(minstrandreads, passing[(passing["strands"]=='-')].shape[0],obsvafrev, loc=0) < strandpvalue))):
             rec.filter.add("StrandSupport")
 
+        if sb > sb_pvalue:
+            rec.filter.add("FisherStrandBias")
+                        
         if failedreadbias > lqrb_pvalue:
             rec.filter.add("LowQualReadBias")
 
@@ -412,11 +442,11 @@ for vline in vcffile.fetch(reopen=True):
 
         rec.samples[mysample]['GT'] = mygt
         rec.samples[mysample]['DP'] = dp
-        rec.samples[mysample]['AD'] = (readdat[(readdat["calls"]=='alt')].shape[0],readdat[(readdat["calls"]=='alt')].shape[0])
+        rec.samples[mysample]['AD'] = (readdat[(readdat["calls"]=='ref') & (readdat["readquals"]=='pass')].shape[0],readdat[(readdat["calls"]=='alt') & (readdat["readquals"]=='pass')].shape[0])
         rec.samples[mysample]['AO'] = ao
         rec.samples[mysample]['RO'] = ro
         rec.samples[mysample]['GL'] = gl
-        rec.samples[mysample]['ST'] = str(plusaltreads) + "," + str(minusaltreads)
+        rec.samples[mysample]['ST'] = str(plusrefreads) + "," + str(minusrefreads) + "," + str(plusaltreads) + "," + str(minusaltreads) + "," + str(sb)
         rec.samples[mysample]['LQRB'] = failedreadbiasstr
         rec.samples[mysample]['TAMP'] = int(totalamplicons)
         rec.samples[mysample]['SAMP'] = len(supportingamplicons)

@@ -22,7 +22,7 @@ workflow MyeloseqHDAnalysis {
 
     String Queue
     String JobGroup 
-	
+
     call run_freebayes {
         input: Cram=Cram,
                CramIndex=CramIndex,
@@ -65,7 +65,7 @@ workflow MyeloseqHDAnalysis {
                queue=Queue,
                jobGroup=JobGroup
     }
-    
+
     call combine_variants {
         input: Vcfs=[clean_freebayes.cleaned_vcf_file,clean_pindel_itd.cleaned_vcf_file],
                Cram=Cram,
@@ -75,7 +75,7 @@ workflow MyeloseqHDAnalysis {
                queue=Queue,
                jobGroup=JobGroup
     }
-    
+
     call run_vep {
         input: CombineVcf=combine_variants.vcf,
                refFasta=refFasta,
@@ -87,7 +87,7 @@ workflow MyeloseqHDAnalysis {
                queue=Queue,
                jobGroup=JobGroup
     }
-    
+
     call run_haplotect {
         input: refFasta=refFasta,
                refDict=ReferenceDict,
@@ -112,17 +112,18 @@ workflow MyeloseqHDAnalysis {
                queue=Queue,
                jobGroup=JobGroup
     }
-    
+
     call haloplex_qc {
-        input: order_by=gather_files.done,
-               refFasta=refFasta,
-               CoverageBed=CoverageBed,
-               QcMetrics=QcMetrics,
-               Description=Description,
-               OutputDir=OutputDir,
-               SubDir=SubDir,
-               queue=Queue,
-               jobGroup=JobGroup
+      input: order_by=gather_files.done,
+      refFasta=refFasta,
+      Name=Name,
+      CoverageBed=CoverageBed,
+      QcMetrics=QcMetrics,
+      Description=Description,
+      OutputDir=OutputDir,
+      SubDir=SubDir,
+      queue=Queue,
+      jobGroup=JobGroup
     }
 
     output {
@@ -145,8 +146,8 @@ task run_freebayes {
      String queue
 
      command {
-     	/usr/local/bin/freebayes -C ${default=3 MinReads} -q ${default=13 MinMapQual} -F ${default="0.0008" MinFreq} -$ ${default=4 MaxMismatch} \
-	-f ${refFasta} -t ${CoverageBed} ${Cram} > "${Name}.freebayes.vcf"	     
+       /usr/local/bin/freebayes -C ${default=3 MinReads} -q ${default=13 MinMapQual} -F ${default="0.0008" MinFreq} -$ ${default=4 MaxMismatch} \
+       -f ${refFasta} -t ${CoverageBed} ${Cram} > "${Name}.freebayes.vcf"
      }
 
      runtime {
@@ -223,12 +224,12 @@ task clean_variants {
      String queue
 
      command {
-          /usr/local/bin/bcftools sort -Oz ${Vcf} | \
-    	  /usr/local/bin/bcftools norm -m-any -f ${refFasta} -Oz | \
-    	  /usr/local/bin/bcftools norm -d any -Oz > "${Name}.cleaned.vcf.gz" && \
-    	  /usr/bin/tabix -p vcf "${Name}.cleaned.vcf.gz"
+         /usr/local/bin/bcftools sort -Oz ${Vcf} | \
+         /usr/local/bin/bcftools norm -m-any -f ${refFasta} -Oz | \
+         /usr/local/bin/bcftools norm -d any -Oz > "${Name}.cleaned.vcf.gz" && \
+         /usr/bin/tabix -p vcf "${Name}.cleaned.vcf.gz"
      }
-     
+
      runtime {
          docker_image: "registry.gsc.wustl.edu/mgi-cle/myeloseqhd:v1"
          cpu: "1"
@@ -238,7 +239,7 @@ task clean_variants {
      }
      output {
          File cleaned_vcf_file = "${Name}.cleaned.vcf.gz"
-	 File index = "${Name}.cleaned.vcf.gz.tbi"
+         File index = "${Name}.cleaned.vcf.gz.tbi"
      }
 }
 
@@ -256,7 +257,7 @@ task combine_variants {
          /usr/bin/tabix -p vcf combined.vcf.gz && \
          /usr/bin/python3 /usr/local/bin/filterHaloplex.py -r ${refFasta} combined.vcf.gz ${Cram} ${Name} > ${Name}.combined_and_tagged.vcf
      }
-    
+
      runtime {
          docker_image: "registry.gsc.wustl.edu/mgi-cle/myeloseqhd:v1"
          cpu: "1"
@@ -353,56 +354,35 @@ task run_haplotect {
 }
 
 task haloplex_qc {
-     String order_by
-     String refFasta
-     String CoverageBed
-     String QcMetrics
-     String Description
-     String OutputDir
-     String SubDir
-     String jobGroup
-     String queue
+  String order_by
+  String refFasta
+  String Name
+  String CoverageBed
+  String QcMetrics
+  String Description
+  String OutputDir
+  String SubDir
+  String jobGroup
+  String queue
 
-     String SampleOutDir = OutputDir + "/" + SubDir  
+  String SampleOutDir = OutputDir + "/" + SubDir
 
-     command {
-         /usr/bin/perl /usr/local/bin/CalculateCoverageQC.pl -r ${refFasta} -d ${SampleOutDir} \
-         -t ${CoverageBed} -q ${QcMetrics} -i ${Description} && \
-         /bin/mv ./*.qc.txt ./*.qc.json ${SampleOutDir} 
-     }
-     runtime {
-         docker_image: "registry.gsc.wustl.edu/mgi-cle/myeloseqhd:v1"
-         cpu: "1"
-         memory: "16 G"
-         queue: queue
-         job_group: jobGroup
-     } 
-     output {
-         String done = stdout()
-     }
-}
+  command {
+    /usr/bin/perl /usr/local/bin/CalculateCoverageQC.pl -r ${refFasta} -d ${SampleOutDir} -n ${Name} \
+    -t ${CoverageBed} -q ${QcMetrics} -i ${Description} && \
+    /bin/mv ./*.qc.txt ./*.qc.json ${SampleOutDir}
+  }
+  runtime {
+    docker_image: "registry.gsc.wustl.edu/mgi-cle/myeloseqhd:v1"
+    cpu: "1"
+    memory: "16 G"
+    queue: queue
+    job_group: jobGroup
+  }
 
-task make_reports {
-     File Variants
-     File QC
-     File Description
-     String Name
-     String jobGroup
-     String queue
-
-     command {
-         /usr/bin/perl /usr/local/bin/FormatClinicalReport.pl ${Variants} ${QC} ${Description} > ${Name}.variant_report.txt
-     }
-
-     runtime {
-         docker_image: "registry.gsc.wustl.edu/fdu/haloplex-qc:3"
-         queue: queue
-         job_group: jobGroup
-     } 
-
-     output {
-         File variant_report = "${Name}.variant_report.txt"
-     }
+  output {
+    String done = stdout()
+  }
 }
 
 task gather_files {
