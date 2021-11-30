@@ -94,6 +94,7 @@ my $REFFASTA='';
 my $COVERAGEBED='';
 my $QCMETRICS = '';
 my $INFOFILE = '';
+my $NAME = '';
 
 my $help = '';
 
@@ -117,6 +118,7 @@ die $usage if $#ARGV < 2;
 GetOptions("r|reference=s" => \$REFFASTA,
            "t|targets=s" => \$COVERAGEBED,
 	   "d|dir=s" => \$DIR,
+	   "n|name=s" => \$NAME,
 	   "i|infofile=s" => \$INFOFILE,
 	   "q|qc=s" => \$QCMETRICS,
 	   "l|bedtools=s" => \$BEDTOOLS,
@@ -383,11 +385,11 @@ $out{timestamp} = scalar localtime();
 
 
 # print QC report
-open(F,">$sample.qc.txt") || die;
+open(F,">$NAME.qc.txt") || die;
 select(F);
 $~="qc_format";
 
-print F "SAMPLE ID: $out{sample}\tLIBRARY ID: $out{library}\nLANE ID: $out{lane_id}\tINSTRUMENT ID: $out{instrument_id}\tDATE REPORTED: ", $out{timestamp}, "\n\n";
+print F "SAMPLE ID: $out{sample}\tLIBRARY ID: $out{library}\tINSTRUMENT ID: $out{instrument_id}\tDATE REPORTED: ", $out{timestamp}, "\n\n";
 
 print F "SEQUENCE DATA QC:\n\n";
 map { @data = print_qc($_,$out{$_},\%QC); write; } qw(TOTAL_READS MAPPED_READS PERCENT_MAPPED_READS PROPER_READS PERCENT_PROPER_READS ONTARGET_READS PERCENT_ONTARGET_READS);
@@ -483,40 +485,44 @@ while(<VF>){
     my $cat = ($F{MYELOSEQ_MDS_AC}>0 || $F{MYELOSEQ_TCGA_AC}>0) ? "TIER 1-2" : "TIER 3";
     $cat = "TIER 4" if $F{Consequence}=~/synonymous/;
 
+    next if $cat eq 'TIER 4' or $F{Consequence} eq 'synonymous_variant';
+
     # special case to handle FLT3 ITD
     if ($F{SYMBOL} eq 'FLT3' && $F{EXON} == 14 && length($F{ALT})>length($F{REF}) && length($F{ALT}) > 6){
         $cat = "TIER 1-2" ;
     }
 
     $cat = "FILTERED" if $F{FILTER} ne 'PASS';
+    $cat = "LOWVAF" if $F{FILTER} eq 'LowVAF';
 
     $F{MAX_AF} = $F{MAX_AF} ? sprintf("%.3f\%",$F{MAX_AF} * 100) : 'none';
 
-    push @{$vars{$cat}}, [$cat,$F{FILTER},$F{set},$F{SYMBOL},$F{CHROM},$F{POS},$F{REF},$F{ALT},$F{Consequence},$F{HGVSp},$F{HGVSc},$F{EXON} || 'NA',$F{INTRON} || 'NA',$F{MAX_AF},$F{REFERENCE_READS}+$F{VARIANT_READS},$F{VARIANT_READS},sprintf("%.2f\%",$F{VAF} * 100),$F{AMPLICONS},$F{SUPPORTING_AMPLICONS}];
+    push @{$vars{$cat}}, [$cat,$F{FILTER},$F{SYMBOL},$F{CHROM},$F{POS},$F{REF},$F{ALT},$F{Consequence},$F{HGVSp},$F{HGVSc},$F{EXON} || 'NA',$F{INTRON} || 'NA',$F{MAX_AF},$F{REFERENCE_READS}+$F{VARIANT_READS},$F{VARIANT_READS},sprintf("%.2f\%",$F{VAF} * 100),$F{AMPLICONS},$F{SUPPORTING_AMPLICONS}];
 
-    push @{$out{VARIANTS}}, $F{HGVSc} if $cat =~ /TIER 1-2|TIER 3/;
 }
 close VF;
 
+$out{VARIANTS} = \%vars;
+
 print F "TIER 1-3 Variant detail:\n\n";
 if (scalar @{$vars{"TIER 1-2"}} > 0 || scalar @{$vars{"TIER 3"}} > 0){
-   print F uc(join("\t", qw(category filter callers gene chrom position ref alt consequence p_syntax c_syntax exon intron pop_freq coverage variant_reads vaf amplicons supporting_amplicons))), "\n";
+   print F uc(join("\t", qw(category filter gene chrom position ref alt consequence p_syntax c_syntax exon intron pop_freq coverage variant_reads vaf amplicons supporting_amplicons))), "\n";
    print F join("\n", map { join("\t", @{$_}) } (@{$vars{"TIER 1-2"}},@{$vars{"TIER 3"}})), "\n\n";
 } else {
  print F "NO VARIANTS\n\n";
 }
 
-print F "TIER 4 Variants:\n\n";
-if (scalar @{$vars{"TIER 4"}} > 0){
-   print F uc(join("\t", qw(category filter callers gene chrom position ref alt consequence p_syntax c_syntax exon intron pop_freq coverage variant_reads vaf amplicons supporting_amplicons))), "\n";
-   print F join("\n", map { join("\t", @{$_}) } @{$vars{"TIER 4"}}), "\n\n";
+print F "LowVAF Variants:\n\n";
+if (scalar @{$vars{"LOWVAF"}} > 0){
+   print F uc(join("\t", qw(category filter gene chrom position ref alt consequence p_syntax c_syntax exon intron pop_freq coverage variant_reads vaf amplicons supporting_amplicons))), "\n";
+   print F join("\n", map { join("\t", @{$_}) } @{$vars{"LOWVAF"}}), "\n\n";
 } else {
  print F "NO VARIANTS\n\n";
 }
 
 print F "Filtered Variants:\n\n";
 if (scalar @{$vars{"FILTERED"}} > 0){
-   print F uc(join("\t", qw(category filter callers gene chrom position ref alt consequence p_syntax c_syntax exon intron pop_freq coverage variant_reads vaf amplicons supporting_amplicons))),"\n";
+   print F uc(join("\t", qw(category filter gene chrom position ref alt consequence p_syntax c_syntax exon intron pop_freq coverage variant_reads vaf amplicons supporting_amplicons))),"\n";
    print F join("\n", map { join("\t", @{$_}) } @{$vars{"FILTERED"}}) . "\n\n";
 } else {
  print F "NO VARIANTS\n\n";
@@ -560,6 +566,6 @@ close F;
 
 
 # print QC json file
-open(F,">$sample.qc.json") || die;
+open(F,">$NAME.qc.json") || die;
 print F encode_json \%out, "\n";
 close F;
