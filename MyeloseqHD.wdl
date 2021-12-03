@@ -17,7 +17,7 @@ workflow MyeloseqHD {
     String Queue
     String DragenQueue = "duncavagee"
 
-    String DragenReference = "/storage1/fs1/gtac-mgi/Active/CLE/reference/dragen_hg38"
+    String DragenReference = "/staging/runs/Chromoseq/refdata/dragen_hg38"
     String Reference    = "/storage1/fs1/duncavagee/Active/SEQ/Chromoseq/process/refdata/hg38/all_sequences.fa"
     String ReferenceDict = "/storage1/fs1/duncavagee/Active/SEQ/Chromoseq/process/refdata/hg38/all_sequences.dict"
 
@@ -28,13 +28,14 @@ workflow MyeloseqHD {
     String HaplotectBed = "/storage1/fs1/gtac-mgi/Active/CLE/analysis/new_myeloseq/git/cle-myeloseqhd/accessory_files/myeloseq.haplotect_snppairs_hg38.041718.bed"
     String AmpliconBed  = "/storage1/fs1/gtac-mgi/Active/CLE/analysis/new_myeloseq/git/cle-myeloseqhd/accessory_files/MyeloseqHD.16462-1615924889.Amplicons.hg38.110221.bed"
     String CoverageBed  = "/storage1/fs1/gtac-mgi/Active/CLE/analysis/new_myeloseq/git/cle-myeloseqhd/accessory_files/MyeloseqHD.16462-1615924889.CoverageQC.hg38.110221.bed"
+    String DragenCoverageBed = "/staging/runs/Haloplex/dragen_align_inputs/MyeloseqHD.16462-1615924889.CoverageQC.hg38.110221.bed"
 
     String CustomAnnotationVcf   = "/storage1/fs1/gtac-mgi/Active/CLE/analysis/new_myeloseq/git/cle-myeloseqhd/accessory_files/myeloseq_custom_annotations.annotated.011618.hg38.vcf.gz"
     String CustomAnnotationIndex = "/storage1/fs1/gtac-mgi/Active/CLE/analysis/new_myeloseq/git/cle-myeloseqhd/accessory_files/myeloseq_custom_annotations.annotated.011618.hg38.vcf.gz.tbi"
+    String CustomAnnotationParameters = "MYELOSEQ,vcf,exact,0,TCGA_AC,MDS_AC,MYELOSEQBLACKLIST"
 
     String QC_pl = "/storage1/fs1/gtac-mgi/Active/CLE/analysis/new_myeloseq/git/cle-myeloseqhd/QC_metrics.pl"
-
-    String CustomAnnotationParameters = "MYELOSEQ,vcf,exact,0,TCGA_AC,MDS_AC,MYELOSEQBLACKLIST"
+    String DemuxFastqDir = "/scratch1/fs1/gtac-mgi/CLE/myeloseq/demux_fastq"
 
     if (defined(DemuxSampleSheet)){
       call dragen_demux {
@@ -79,7 +80,7 @@ workflow MyeloseqHD {
                    SM=samples[6],
                    LB=samples[5] + '.' + samples[0],
                    AmpliconBed=AmpliconBed,
-                   CoverageBed=CoverageBed,
+                   CoverageBed=DragenCoverageBed,
                    OutputDir=OutputDir,
                    SubDir=samples[1] + '_' + samples[0],
                    queue=DragenQueue,
@@ -118,15 +119,25 @@ workflow MyeloseqHD {
                    JobGroup=JobGroup
         }
     } 
+    
+    if (defined(DemuxSampleSheet)){
+        call move_demux_fastq {
+            input: order_by=MyeloseqHDAnalysis.all_done,
+            Batch=basename(OutputDir),
+            DemuxFastqDir=DemuxFastqDir,
+            queue=DragenQueue,
+            jobGroup=JobGroup
+        }
+    }
+    
+    call batch_qc {
+        input: order_by=MyeloseqHDAnalysis.all_done,
+               BatchDir=OutputDir,
+               QC_pl=QC_pl,
+               queue=Queue,
+               jobGroup=JobGroup
+    }
 }
-
-#    call batch_qc {
-#        input: order_by=gather_files.out,
-#               BatchDir=OutputDir,
-#               QC_pl=QC_pl,
-#               queue=Queue,
-#               jobGroup=JobGroup
-#    }
 
 
 task dragen_demux {
@@ -136,15 +147,22 @@ task dragen_demux {
      String jobGroup
      String queue
 
+     String batch = basename(OutputDir)
      String StagingDir = "/staging/runs/Haloplex/"
-     String log = StagingDir + "log/dragen_demux.log"
+     String LocalFastqDir = StagingDir + "demux_fastq/" + batch
+     String LocalReportDir = LocalFastqDir + "/Reports"
+     String LocalSampleSheet = StagingDir + "sample_sheet/" + batch + '.csv'
+     String log = StagingDir + "log/" + batch + "_demux.log"
      String DemuxReportDir = OutputDir + "/dragen_demux_reports"
 
      command <<<
-          /opt/edico/bin/dragen --bcl-conversion-only true --bcl-only-matched-reads true --strict-mode true --sample-sheet ${SampleSheet} --bcl-input-directory ${Dir} --output-directory ./demux_fastq &> ${log} && \
-          /bin/mv ${log} ./ && \
-          /bin/mv ./demux_fastq/* ./ && \
-          /bin/cp -r ./Reports ${DemuxReportDir}
+         /bin/cp ${SampleSheet} ${LocalSampleSheet} && \
+         /opt/edico/bin/dragen --bcl-conversion-only true --bcl-only-matched-reads true --strict-mode true --sample-sheet ${LocalSampleSheet} --bcl-input-directory ${Dir} --output-directory ${LocalFastqDir} &> ${log} && \
+         /bin/ls ${LocalFastqDir}/*_R1_001.fastq.gz > Read1_list.txt && \
+         /bin/ls ${LocalFastqDir}/*_R2_001.fastq.gz > Read2_list.txt && \
+         /bin/mv ${log} ./ && \
+         /bin/rm -f ${LocalSampleSheet} && \
+         /bin/cp -r ${LocalReportDir} ${DemuxReportDir}
      >>>
 
      runtime {
@@ -156,21 +174,21 @@ task dragen_demux {
          job_group: jobGroup 
      }
      output {
-         Array[File] read1 = glob("*_R1_001.fastq.gz") 
-         Array[File] read2 = glob("*_R2_001.fastq.gz")
+         File read1 = "Read1_list.txt"
+         File read2 = "Read2_list.txt"
      }
 }
 
 task prepare_samples {
      File SampleSheet
-     Array[File] Fastq1
-     Array[File] Fastq2
+     String Fastq1
+     String Fastq2
      String jobGroup
      String queue
 
      command <<<
-             /bin/cat ${write_tsv(Fastq1)} > 1.tmp.txt
-             /bin/cat ${write_tsv(Fastq2)} > 2.tmp.txt
+             /bin/cp ${Fastq1} 1.tmp.txt
+             /bin/cp ${Fastq2} 2.tmp.txt
              /usr/bin/perl -e 'open(R1,"1.tmp.txt"); @r1 = <R1>; \
                  chomp @r1; close R1;\
                  open(R2,"2.tmp.txt"); @r2 = <R2>; \
@@ -195,7 +213,6 @@ task prepare_samples {
      }
      output {
          File sample_sheet = "sample_sheet.txt"
-         Array[Array[String]] sample_data = read_tsv("sample_sheet.txt")
      }
 }
 
@@ -246,14 +263,21 @@ task dragen_align {
      String jobGroup
      String queue
 
-     String outdir = OutputDir + "/" + SubDir
-     String dragen_outdir = outdir + "/dragen"
-     String LocalSampleDir = "./" + SubDir
+     String batch = basename(OutputDir)
 
      String StagingDir = "/staging/runs/Haloplex/"
-     String log = StagingDir + "log/" + Name + "_dragen_align.log"
+     String LocalAlignDir = StagingDir + "align/" + batch
+     String LocalSampleDir = LocalAlignDir + "/" + SubDir
+     String log = StagingDir + "log/" + Name + "_align.log"
+
+     String outdir = OutputDir + "/" + SubDir
+     String dragen_outdir = outdir + "/dragen"
 
      command {
+         if [ ! -d "${LocalAlignDir}" ]; then
+             /bin/mkdir ${LocalAlignDir}
+         fi
+
          /bin/mkdir ${LocalSampleDir} && \
          /bin/mkdir ${outdir} && \
          /opt/edico/bin/dragen -r ${DragenRef} --tumor-fastq1 ${fastq1} --tumor-fastq2 ${fastq2} --RGSM-tumor ${SM} --RGID-tumor ${RG} --RGLB-tumor ${LB} --enable-map-align true --enable-sort true --enable-map-align-output true --vc-enable-umi-liquid true --gc-metrics-enable=true --qc-coverage-region-1 ${CoverageBed} --qc-coverage-reports-1 full_res --umi-enable true --umi-library-type=random-simplex --umi-min-supporting-reads 1 --enable-variant-caller=true --vc-target-bed ${CoverageBed} --umi-metrics-interval-file ${CoverageBed} --read-trimmers=fixed-len --trim-r1-5prime=${default=1 TrimLen} --trim-r1-3prime=${default=1 TrimLen} --trim-r2-5prime=${default=1 TrimLen} --trim-r2-3prime=${default=1 TrimLen} --output-dir ${LocalSampleDir} --output-file-prefix ${Name} --output-format BAM &> ${log} && \
@@ -313,6 +337,30 @@ task convert_bam {
          File crai = "${Name}.cram.crai"
          File info = "${Name}.ampinfo.txt"
          File counts = "${Name}.ampcounts.txt"
+     }
+}
+
+task move_demux_fastq {
+     Array[String] order_by
+     String Batch
+     String DemuxFastqDir
+     String queue
+     String jobGroup
+
+     String LocalDemuxFastqDir = "/staging/runs/Haloplex/demux_fastq/" + Batch
+
+     command {
+         if [ -d "${LocalDemuxFastqDir}" ]; then
+             /bin/mv ${LocalDemuxFastqDir} ${DemuxFastqDir}
+         fi
+     }
+     runtime {
+         docker_image: "ubuntu:xenial"
+         queue: queue
+         job_group: jobGroup
+     }
+     output {
+         String done = stdout()
      }
 }
 
