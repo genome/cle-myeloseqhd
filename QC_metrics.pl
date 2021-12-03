@@ -28,33 +28,21 @@ unless (-d $dir) {
 
 my @case_metrics_list = qw(
     TOTAL_READS 
-    ALIGNED_READS 
-    PERCENT_ALIGNED_READS 
+    MAPPED_READS 
+    PERCENT_MAPPED_READS
     ONTARGET_READS 
     PERCENT_ONTARGET_READS
-    CONDENSED_ONTARGET_READS 
-    PERCENT_CONDENSED_ONTARGET_READS
     MEAN_READS_PER_UMI 
-    MEDIAN_READS_PER_UMI
-    PERCENT_UMI_COVERAGE_1x 
-    PERCENT_UMI_COVERAGE_2x 
-    PERCENT_UMI_COVERAGE_3x 
-    PERCENT_UMI_COVERAGE_OVER_4x
+    PERCENT_UMI_COVERAGE_OVER_2x
     MEAN_READ_PAIRS_PER_AMPLICON 
-    MEDIAN_READ_PAIRS_PER_AMPLICON
-    PERCENT_AMPLICON_COVERAGE_0x 
-    PERCENT_AMPLICON_COVERAGE_10x 
-    PERCENT_AMPLICON_COVERAGE_50x 
-    PERCENT_AMPLICON_COVERAGE_100x
+    PERCENT_AMPLICON_COVERAGE_0x
+    PERCENT_AMPLICON_LOW_COVERAGE
     FAILED_HOTSPOTQC 
     PASSED_HOTSPOTQC
     MEAN_UNIQUE_COVERAGE 
     MEDIAN_UNIQUE_COVERAGE
-    MEAN_RAW_COVERAGE 
-    MEDIAN_RAW_COVERAGE
-    PERCENT_UNIQUE_COVERAGE_50x 
-    PERCENT_UNIQUE_COVERAGE_100x 
-    PERCENT_UNIQUE_COVERAGE_200x
+    PERCENT_UNIQUE_COVERAGE_600x 
+    PERCENT_UNIQUE_COVERAGE_2000x
     HAPLOTECT_SITES
     HAPLOTECT_CONTAM
     FAILEDGENES
@@ -70,7 +58,7 @@ $out_fh->print("\n");
 opendir(my $dir_h, $dir);
 
 for my $case_name (readdir $dir_h) {
-    next if $case_name =~ /^\.|^cromwell/;
+    next if $case_name =~ /^(\.|cromwell|dragen|demux|old|test)/;
     my $lib_dir = $dir .'/'.$case_name;
     next unless -d $lib_dir;
 
@@ -78,7 +66,7 @@ for my $case_name (readdir $dir_h) {
     my $qc_json_file = $lib_dir."/$case_id.qc.json";
 
     my $json_text = do {
-        open(my $json_fh, "<:encoding(UTF-8)", $qc_json_file) or die "fail to open $qc_json_file";
+        open(my $json_fh, "<:encoding(UTF-8)", $qc_json_file) or die "fail to open $qc_json_file for $case_name";
         local $/;
         <$json_fh>
     };
@@ -103,7 +91,7 @@ for my $case_name (readdir $dir_h) {
             my $info = $data->{$case_metrics_name};
             if ($info) {
                 my @strs;
-                for my $gene (keys %$info) {
+                for my $gene (sort keys %$info) {
                     push @strs, $gene.'('.sprintf("%.2f",$info->{$gene}).')';
                 }
                 my $str = join ',', @strs;
