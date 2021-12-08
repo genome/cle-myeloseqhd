@@ -128,8 +128,15 @@ workflow MyeloseqHD {
             queue=DragenQueue,
             jobGroup=JobGroup
         }
+
+        call remove_rundir {
+            input: order_by=MyeloseqHDAnalysis.all_done,
+            rundir=IlluminaDir,
+            queue=DragenQueue,
+            jobGroup=JobGroup
+        }
     }
-    
+
     call batch_qc {
         input: order_by=MyeloseqHDAnalysis.all_done,
                BatchDir=OutputDir,
@@ -385,3 +392,23 @@ task batch_qc {
      }
 }
 
+task remove_rundir {
+     Array[String] order_by
+     String rundir
+     String queue
+     String jobGroup
+
+     command {
+         if [ -d "${rundir}" ]; then
+             /bin/rm -Rf ${rundir}
+         fi
+     }
+     runtime {
+         docker_image: "ubuntu:xenial"
+         queue: queue
+         job_group: jobGroup
+     }
+     output {
+         String done = stdout()
+     }
+}
