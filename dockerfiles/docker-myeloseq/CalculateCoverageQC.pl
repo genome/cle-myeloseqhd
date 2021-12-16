@@ -137,7 +137,7 @@ my $CRAM = `readlink -f $DIR/*.cram`;
 chomp $CRAM;
 die "consensus bam not valid: $CRAM\n" if !-s $CRAM;
 
-my $VARIANTFILE = `readlink -f $DIR/*.variants_annotated.tsv`;
+my $VARIANTFILE = `readlink -f $DIR/*.annotated_filtered.vcf.gz`;
 chomp $VARIANTFILE;
 die "variant file not valid: $VARIANTFILE\n" if !-e $VARIANTFILE;
 
@@ -383,7 +383,6 @@ format gene_qc_format =
 
 $out{timestamp} = scalar localtime();
 
-
 # print QC report
 open(F,">$NAME.qc.txt") || die;
 select(F);
@@ -447,27 +446,65 @@ foreach my $g (sort keys %{$out{GENECOV}}){
 }
 print F "\n";
 
+# get transcript ids for the assay to get the right VEP gene annotation 
+my %trxids = ();
+open(B,$COVERAGEBED) || die;
+while(<B>){
+  chomp;
+  my @l = split("\t",$_);
+  $trxids{$l[8]} = 1;
+}
+close B;
 
 my %aa3to1 = qw(Ala A Arg R Asn N Asp D Asx B Cys C Glu E Gln Q Glx Z Gly G His H Ile I Leu L Lys K Met M Phe F Pro P Ser S Thr T Trp W Tyr Y Val V Xxx X Ter *);
 
 my %vars = ("TIER 1-2" => [], "TIER 3" => [], "TIER 4" => [], "FILTERED" => []);
-open(VF,$VARIANTFILE) || die;
-$_ = <VF>;
-chomp;
-s/\s+$//;
-s/\S+\.CVAF/VAF/;
-s/\S+\.TAMP/AMPLICONS/;
-s/\S+\.SAMP/SUPPORTING_AMPLICONS/;
-s/\S+\.RO/REFERENCE_READS/;
-s/\S+\.AO/VARIANT_READS/;
+open(VF,"gunzip -c $VARIANTFILE |") || die "Cant open variant file: $VARIANTFILE\n";
 
-@headers = split("\t",$_);
+my @csqhd = ();
 
 while(<VF>){
-    chomp;
-    s/\s+$//;
+  chomp;
+  next if /^#/ && !/ID=CSQ/;
+
+  # parse VEP header
+  if (/^#.+ID=CSQ/){
+    s/\"|\<|\>//g;
+    @csqhd = split(/\|/,$_);
+
+  # get VCF record
+  } else {
+
     my @F = split("\t",$_);
-    my %F = map { $headers[$_] => $F[$_] } 0..$#F;
+
+    # parse INFO field
+    my %info = ();
+    foreach my $f (split(";",$F[7])){
+      my ($k,$v) = split("=",$f);
+      $info{$k} = $v;
+    }
+
+    # get proper CSQ record
+    my %F = ();
+    foreach my $c (split(",",$info{CSQ})){
+      my @e = split(/\|/,$c);
+      my %e = map { $csqhd[$_] => $e[$_] } 0..$#csqhd;
+
+      # get the info for the proper transcript feature
+      %F = %e if (scalar keys %F == 0 and $e{PICK} == 1) or defined($trxids{$e{'Feature'}});
+
+    }
+
+    # get format fields
+    my @fmthd = split(":",$F[8]);
+    my @fmt = split(":",$F[9]);
+    map { $F{$fmthd[$_]} = $fmt[$_] } 0..$#fmt;
+
+    $F{CHROM} = $F[0];
+    $F{POS} = $F[1];
+    $F{REF} = $F[3];
+    $F{ALT} = $F[4];
+    $F{FILTER} = $F[6];
 
     $F{Consequence} = (split("&",$F{Consequence}))[0];
     $F{Consequence} =~ /^(\S+?)_/;
@@ -497,8 +534,8 @@ while(<VF>){
 
     $F{MAX_AF} = $F{MAX_AF} ? sprintf("%.3f\%",$F{MAX_AF} * 100) : 'none';
 
-    push @{$vars{$cat}}, [$cat,$F{FILTER},$F{SYMBOL},$F{CHROM},$F{POS},$F{REF},$F{ALT},$F{Consequence},$F{HGVSp},$F{HGVSc},$F{EXON} || 'NA',$F{INTRON} || 'NA',$F{MAX_AF},$F{REFERENCE_READS}+$F{VARIANT_READS},$F{VARIANT_READS},sprintf("%.2f\%",$F{VAF} * 100),$F{AMPLICONS},$F{SUPPORTING_AMPLICONS}];
-
+    push @{$vars{$cat}}, [$cat,$F{FILTER},$F{SYMBOL},$F{CHROM},$F{POS},$F{REF},$F{ALT},$F{Consequence},$F{HGVSp},$F{HGVSc},$F{EXON} || 'NA',$F{INTRON} || 'NA',$F{MAX_AF},$F{RO}+$F{AO},$F{AO},sprintf("%.2f\%",$F{VAF} * 100),$F{TAMP},$F{SAMP}];
+  }
 }
 close VF;
 

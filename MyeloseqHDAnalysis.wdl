@@ -44,7 +44,7 @@ workflow MyeloseqHDAnalysis {
     call run_pindel_region as run_pindel_flt3itd {
         input: Cram=Cram,
                CramIndex=CramIndex,
-               Reg='chr13:28033987-28034316',
+               Reg=CoverageBed,
                refFasta=refFasta,
                Name=Name,
                queue=Queue,
@@ -105,8 +105,7 @@ workflow MyeloseqHDAnalysis {
                run_haplotect.out_file,
                run_haplotect.sites_file,
                run_vep.vcf,
-               run_vep.filtered_vcf,
-               run_vep.filtered_tsv],
+               run_vep.filtered_vcf],
                OutputDir=OutputDir,
                SubDir=SubDir,
                queue=Queue,
@@ -175,14 +174,14 @@ task run_pindel_region {
      String queue
 
      command <<<
-         (set -eo pipefail && /usr/local/bin/samtools view -T ${refFasta} ${Cram} ${Reg} | /opt/pindel-0.2.5b8/sam2pindel - /tmp/in.pindel ${default=250 Isize} tumor 0 Illumina-PairEnd) && \
-         /usr/bin/pindel -f ${refFasta} -p /tmp/in.pindel -c ${Reg} -o /tmp/out.pindel && \
-         /usr/bin/pindel2vcf -P /tmp/out.pindel -G -r ${refFasta} -e ${default=3 MinReads} -R ${default="GRCh38" Genome} -d ${default="GRCh38" Genome} -v /tmp/out.vcf && \
+         (set -eo pipefail && /usr/local/bin/samtools view -T ${refFasta} -ML ${Reg} ${Cram} | /opt/pindel-0.2.5b8/sam2pindel - /tmp/in.pindel ${default=250 Isize} tumor 0 Illumina-PairEnd) && \
+         /usr/local/bin/pindel -f ${refFasta} -p /tmp/in.pindel -j ${Reg} -o /tmp/out.pindel && \
+         /usr/local/bin/pindel2vcf -P /tmp/out.pindel -G -r ${refFasta} -e ${default=3 MinReads} -R ${default="GRCh38" Genome} -d ${default="GRCh38" Genome} -v /tmp/out.vcf && \
          sed 's/END=[0-9]*;//' /tmp/out.vcf > ${Name}.pindel.vcf
      >>>
 
      runtime {
-         docker_image: "registry.gsc.wustl.edu/fdu/pindel2vcf-0.6.3:1"
+         docker_image: "registry.gsc.wustl.edu/mgi-cle/pindel2vcf-0.6.3:1"
          cpu: "1"
          memory: "16 G"
          queue: queue
@@ -291,18 +290,12 @@ task run_vep {
              /usr/bin/touch ${Name}.variants_annotated.tsv
          else
              /usr/bin/perl -I /opt/lib/perl/VEP/Plugins /usr/bin/variant_effect_predictor.pl --format vcf \
-             --vcf --plugin Downstream --plugin Wildtype --fasta ${refFasta} --hgvs --symbol --term SO --flag_pick \
+             --vcf --plugin Downstream --fasta ${refFasta} --hgvs --symbol --term SO --flag_pick \
              -i ${CombineVcf} --custom ${CustomAnnotationVcf},${CustomAnnotationParameters} --offline --cache --max_af --dir ${Vepcache} -o ${Name}.annotated.vcf && \
              /opt/htslib/bin/bgzip ${Name}.annotated.vcf && /usr/bin/tabix -p vcf ${Name}.annotated.vcf.gz && \
              /usr/bin/perl -I /opt/lib/perl/VEP/Plugins /opt/vep/ensembl-vep/filter_vep -i ${Name}.annotated.vcf.gz --format vcf \
              --filter "(MAX_AF < ${default='0.001' maxAF} or not MAX_AF) or MYELOSEQ_TCGA_AC or MYELOSEQ_MDS_AC" -o ${Name}.annotated_filtered.vcf && \
-             /opt/htslib/bin/bgzip ${Name}.annotated_filtered.vcf && /usr/bin/tabix -p vcf ${Name}.annotated_filtered.vcf.gz && \
-             /usr/bin/java -Xmx4g -jar /opt/GenomeAnalysisTK.jar -T VariantsToTable \
-             -R ${refFasta} --showFiltered --variant ${Name}.annotated_filtered.vcf.gz -o /tmp/variants.tsv \
-             -F CHROM -F POS -F ID -F FILTER -F REF -F ALT -GF TAMP -GF SAMP -GF CVAF -GF RO -GF AO && \
-             /usr/bin/python /usr/bin/add_annotations_to_table_helper.py /tmp/variants.tsv ${Name}.annotated_filtered.vcf.gz \
-             Consequence,SYMBOL,EXON,INTRON,Feature_type,Feature,HGVSc,HGVSp,HGNC_ID,MAX_AF,MYELOSEQ_TCGA_AC,MYELOSEQ_MDS_AC /tmp/ && \
-             mv /tmp/variants.annotated.tsv ${Name}.variants_annotated.tsv
+             /opt/htslib/bin/bgzip ${Name}.annotated_filtered.vcf && /usr/bin/tabix -p vcf ${Name}.annotated_filtered.vcf.gz
          fi
      }
      runtime {
@@ -315,7 +308,6 @@ task run_vep {
      output {
          File vcf = "${Name}.annotated.vcf.gz"
          File filtered_vcf = "${Name}.annotated_filtered.vcf.gz"
-         File filtered_tsv = "${Name}.variants_annotated.tsv"
      }
 }
 
