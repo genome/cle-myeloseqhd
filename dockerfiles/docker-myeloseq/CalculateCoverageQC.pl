@@ -2,7 +2,7 @@
 
 use strict;
 use Getopt::Long;
-  
+
 use File::Basename;
 use Statistics::Basic qw(:all);
 use JSON;
@@ -238,7 +238,7 @@ while(<DU>){
     }
 }
 close DU;
-    
+
 #  get dragen GC metrics
 open(DG,"$DRAGENGC") || die "Cannot open dragen GC metrics file: $DRAGENGC\n";
 $out{'GC METRICS'} = {};
@@ -458,7 +458,7 @@ close B;
 
 my %aa3to1 = qw(Ala A Arg R Asn N Asp D Asx B Cys C Glu E Gln Q Glx Z Gly G His H Ile I Leu L Lys K Met M Phe F Pro P Ser S Thr T Trp W Tyr Y Val V Xxx X Ter *);
 
-my %vars = ("TIER 1-2" => [], "TIER 3" => [], "TIER 4" => [], "FILTERED" => []);
+my %vars = ("TIER 1-2" => [], "TIER 3" => [], "TIER 4" => [], "FILTERED" => [], "LOWVAF" => []);
 open(VF,"gunzip -c $VARIANTFILE |") || die "Cant open variant file: $VARIANTFILE\n";
 
 my @csqhd = ();
@@ -505,6 +505,7 @@ while(<VF>){
     $F{REF} = $F[3];
     $F{ALT} = $F[4];
     $F{FILTER} = $F[6];
+    $F{VAF} = $F{CVAF};
 
     $F{Consequence} = (split("&",$F{Consequence}))[0];
     $F{Consequence} =~ /^(\S+?)_/;
