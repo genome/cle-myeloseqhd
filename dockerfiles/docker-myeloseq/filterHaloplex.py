@@ -186,7 +186,7 @@ for vline in vcffile.fetch(reopen=True):
         strands = []
         numreads = []
         readids = []
-        
+
         ############################
         #
         # Handle substitutions
@@ -198,7 +198,7 @@ for vline in vcffile.fetch(reopen=True):
             for pileup in samfile.pileup(rec.contig, rec.pos-1, rec.pos, max_depth=10000000, multiple_iterators=True):
 
                 # only consider the variant position
-                if pileup.pos == rec.pos-1: 
+                if pileup.pos == rec.pos-1:
 
                     for read in pileup.pileups:
 
@@ -228,9 +228,9 @@ for vline in vcffile.fetch(reopen=True):
                         if read.alignment.has_tag("XN"):
                             amplicons.append(read.alignment.get_tag("XN"))
                         else:
-                            amplicons.append(None)                                                    
+                            amplicons.append(None)
 
-                        # skip if more than maxmismatches edit distance for this read or position in indel or 
+                        # skip if more than maxmismatches edit distance for this read or position in indel or
                         if read.alignment.get_tag("SD") > maxmismatches/read.alignment.query_alignment_length or (not read.is_del and not read.is_refskip and int(read.alignment.query_qualities[read.query_position]) < minqual) or read.alignment.mapping_quality < minmapqual or not read.alignment.has_tag("XN") or not read.alignment.is_proper_pair:
                             readquals.append('fail')
 
@@ -257,7 +257,7 @@ for vline in vcffile.fetch(reopen=True):
             altseqs = []
             for var in vcffile.fetch(contig=rec.contig,start=rec.pos-indelwindow,end=rec.pos+indelwindow,reopen=True):
 
-                altseq = fa.fetch(rec.contig,refseqstart,var.pos-1) + var.alts[0] + fa.fetch(rec.contig,var.pos-1+len(var.ref),refseqend)
+                altseq = fa.fetch(rec.contig,var.pos-window,var.pos-1) + var.alts[0] + fa.fetch(rec.contig,var.pos-1+len(var.ref),var.pos-1+len(var.ref)+window)
 
                 # if this is the indel in question add it and make the indicator 1
                 if var.pos == rec.pos and var.alts[0] == rec.alts[0]:
@@ -266,7 +266,7 @@ for vline in vcffile.fetch(reopen=True):
                 # otherwise add it and make the indicator 0
                 else:
                     altseqs.append((altseq,0))
-                    
+
             # now get all reads that map to the vicinity, including those with
             # start and end within 2 * the variant length
             for read in samfile.fetch(rec.contig, rec.pos-1-varlen*2, rec.pos+varlen*2,multiple_iterators = True):
@@ -274,7 +274,7 @@ for vline in vcffile.fetch(reopen=True):
                 rdsize = int(read.get_tag("XV"))
                 if read.is_unmapped is True or rdsize < readfamilysize:
                     continue
-                
+
                 # get read start and end if the whole thing is mapped
                 readstart = read.reference_start
                 readend = read.reference_end - 1
@@ -283,7 +283,7 @@ for vline in vcffile.fetch(reopen=True):
                 # whether reads overlap the variant position
                 if read.cigartuples[0][0] == 4:
                     readstart = readstart - varlen - 1 #read.cigartuples[0][1]
-                
+
                 if read.cigartuples[-1][0] == 4:
                     readend = readend + varlen + 1 #read.cigartuples[-1][1]
 
@@ -291,7 +291,7 @@ for vline in vcffile.fetch(reopen=True):
                 if readstart <= rec.pos-1 and readend >= rec.pos-1:
 
                     readids.append(read.query_name)
-                    
+
                     # if there are no indels or softclips, then call it for the reference allele 
                     if len(read.cigartuples) == 1 and read.cigartuples[0][0] == 0 and read.cigartuples[0][1] == read.query_length and read.get_cigar_stats()[0][10] < varlen:
                         calls.append('ref')
@@ -299,7 +299,7 @@ for vline in vcffile.fetch(reopen=True):
                     # otherwise, do SW to decide whether the read supports the reference allele or the alt allele
                     else:
                         rdseq = read.query_sequence
-            
+
                         alnref = pairwise2.align.localms(rdseq,refseq, 2, -1, -2, -1,score_only=1,one_alignment_only=1)
 
                         maxscore = 0
@@ -309,20 +309,20 @@ for vline in vcffile.fetch(reopen=True):
                                 if sa > maxscore:
                                     maxscore = sa
                                     thisindel = isthisindel
-                                    
+
                         if maxscore > alnref and thisindel == 1:
                             calls.append('alt')
 
                         else:
                             calls.append('ref')
-                            
+
 
                     if read.is_reverse:
                         strands.append('-')
                     else:
                         strands.append('+')
-    
-                    # get the amplicon tag                                                                                                                                    
+
+                    # get the amplicon tag
                     if read.has_tag("XN"):
                         amplicons.append(read.get_tag("XN"))
                     else:
@@ -330,7 +330,7 @@ for vline in vcffile.fetch(reopen=True):
 
                     # get read family size
                     numreads.append(int(read.get_tag("XV")))
-                        
+
                     # skip if more than maxmismatches edit distance for this read or position in indel or 
                     if read.get_tag("SD") > maxmismatches/read.query_alignment_length or read.mapping_quality < minmapqual or not read.is_proper_pair: #not read.has_tag("XN"):
                         readquals.append('fail')
@@ -365,21 +365,21 @@ for vline in vcffile.fetch(reopen=True):
 
         # total depth
         dp = passing.shape[0]
-        
+
         # dont even print these
         if ao < minreads:
             continue
-        
+
         # total amplicons
         totalamplicons = passing["amplicons"].cat.remove_unused_categories().value_counts().count()
-        
+
         # get number of amplicons with the alterate allele
         supportingamplicons = passing[(passing["calls"]=='alt')]["amplicons"].cat.remove_unused_categories().cat.categories        
 
         rawvaf = ao / dp
-                
+
         ampliconcounts = []
-        
+
         # get per amplicon support information
         for a in passing["amplicons"].cat.remove_unused_categories().cat.categories:
             ampliconcounts.append(str(a) + "," + str(passing[(passing["amplicons"]==a) & (passing["calls"]=='ref')].shape[0]) + "," + str(passing[(passing["amplicons"]==a) & (passing["calls"]=='alt')].shape[0]))                
@@ -394,11 +394,11 @@ for vline in vcffile.fetch(reopen=True):
             failedreadbias = min(99,int(-10 * math.log(fisher_exact(readqual2x2)[1] or 1.258925e-10,10)))
 
         failedreadbiasstr = failedreadbiasstr + str(failedreadbias)
-            
+
         # per strand VAFs
         obsvaffwd = 0.0
         obsvafrev= 0.0
-        
+
         plusaltreads = passing[(passing["calls"]=='alt') & (passing["strands"]=='+')].shape[0]
         minusaltreads = passing[(passing["calls"]=='alt') & (passing["strands"]=='-')].shape[0]
 
@@ -419,13 +419,13 @@ for vline in vcffile.fetch(reopen=True):
         altstrandskewing = plusaltreads/(plusaltreads+minusaltreads)-.5 if (plusaltreads+minusaltreads) > 0 else 0
         if rec.samples[0]['GT'] != (1,1) and altstrandskewing * refstrandskewing < 0 and readdat[(readdat["calls"]=='ref')].shape[0] > 0 and readdat[(readdat["calls"]=='alt')].shape[0] > 0 and readdat[(readdat["strands"]=='+')].shape[0] > 0 and readdat[(readdat["strands"]=='-')].shape[0] > 0:
             sb = min(99,int(-10 * math.log(fisher_exact(sb2x2)[1] or 1.258925e-10,10)))
-            
+
         # do filtering
         rec.filter.clear()
 
         if len(supportingamplicons) < minampnumber:
             rec.filter.add("AMPSupport")
-        
+
         # min vaf filter
         if rawvaf < minvaf:
             rec.filter.add("LowVAF")
@@ -437,19 +437,19 @@ for vline in vcffile.fetch(reopen=True):
 
         if sb > sb_pvalue:
             rec.filter.add("FisherStrandBias")
-                        
+
         if failedreadbias > lqrb_pvalue:
             rec.filter.add("LowQualReadBias")
 
         if len(rec.filter.values())==0:
             rec.filter.add("PASS")
-            
+
         mygt = ('.','.')
         if rawvaf > .98:
             mygt = (1,1)
         else:
             mygt = (0,1)
-            
+
         mysample=0
 
         # make new record to harmonize format fields
