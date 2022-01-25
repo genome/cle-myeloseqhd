@@ -96,6 +96,8 @@ my $QCMETRICS = '';
 my $INFOFILE = '';
 my $NAME = '';
 
+my $minreadfamilysize = 3;
+
 my $help = '';
 
 my $usage = '';
@@ -108,7 +110,7 @@ my $usage = <<END;
 
       -t|bedtools [/usr/local/bin/samtools]
       -s|samtools [/usr/local/bin/bedtools]
-
+      -m|minreads [3]
       -h|help prints help
 
 END
@@ -121,6 +123,7 @@ GetOptions("r|reference=s" => \$REFFASTA,
 	   "n|name=s" => \$NAME,
 	   "i|infofile=s" => \$INFOFILE,
 	   "q|qc=s" => \$QCMETRICS,
+	   "m|minreads=i" => \$minreadfamilysize,
 	   "l|bedtools=s" => \$BEDTOOLS,
 	   "s|samtools=s" => \$SAMTOOLS,
 	   "h|help" => \$help);
@@ -294,7 +297,7 @@ my %hotspot = ();
 my @consensusCoverage = ();
 my $totalSize =0;
 my %coverageLevels = ();
-open(C,"$SAMTOOLS view -T $REFFASTA -b -e '[XV]>2' -f 0x2 $CRAM | $SAMTOOLS depth -d 1000000 -Q $minMapQual -q $minBaseQual -b $COVERAGEBED - | /usr/bin/awk -v OFS=\"\t\" '{ print \$1,\$2-1,\$2,\$3; }' | $BEDTOOLS intersect -a stdin -b $COVERAGEBED -wo |") || die "error running QC script $0";
+open(C,"$SAMTOOLS view -T $REFFASTA -b -e '[XV]>=$minreadfamilysize' -f 0x2 $CRAM | $SAMTOOLS depth -d 1000000 -Q $minMapQual -q $minBaseQual -b $COVERAGEBED - | /usr/bin/awk -v OFS=\"\t\" '{ print \$1,\$2-1,\$2,\$3; }' | $BEDTOOLS intersect -a stdin -b $COVERAGEBED -wo |") || die "error running QC script $0";
 while(<C>){
     chomp;
     my @l = split("\t",$_);
