@@ -228,10 +228,10 @@ for vline in vcffile.fetch(reopen=True):
                         if read.alignment.has_tag("XN"):
                             amplicons.append(read.alignment.get_tag("XN"))
                         else:
-                            amplicons.append(None)
+                            amplicons.append("NOTAG")
 
                         # skip if more than maxmismatches edit distance for this read or position in indel or
-                        if read.alignment.get_tag("SD") > maxmismatches/read.alignment.query_alignment_length or (not read.is_del and not read.is_refskip and int(read.alignment.query_qualities[read.query_position]) < minqual) or read.alignment.mapping_quality < minmapqual or not read.alignment.has_tag("XN") or not read.alignment.is_proper_pair:
+                        if read.alignment.get_tag("SD") > maxmismatches/read.alignment.query_alignment_length or (not read.is_del and not read.is_refskip and int(read.alignment.query_qualities[read.query_position]) < minqual) or read.alignment.mapping_quality < minmapqual or not read.alignment.is_proper_pair:
                             readquals.append('fail')
 
                         else:
@@ -322,17 +322,17 @@ for vline in vcffile.fetch(reopen=True):
                     else:
                         strands.append('+')
 
-                    # get the amplicon tag
+                    # get the amplicon tag or assign notag
                     if read.has_tag("XN"):
                         amplicons.append(read.get_tag("XN"))
                     else:
-                        amplicons.append(None)
+                        amplicons.append("NOTAG")
 
                     # get read family size
                     numreads.append(int(read.get_tag("XV")))
 
                     # skip if more than maxmismatches edit distance for this read or position in indel or 
-                    if read.get_tag("SD") > maxmismatches/read.query_alignment_length or read.mapping_quality < minmapqual or not read.is_proper_pair: #not read.has_tag("XN"):
+                    if read.get_tag("SD") > maxmismatches/read.query_alignment_length or read.mapping_quality < minmapqual or not read.is_proper_pair:
                         readquals.append('fail')
 
                     else:

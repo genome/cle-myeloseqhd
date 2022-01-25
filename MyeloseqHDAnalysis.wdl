@@ -250,11 +250,12 @@ task combine_variants {
      String Name
      String jobGroup
      String queue
+     Int? MinReadsPerFamily
 
      command {
          /usr/local/bin/bcftools merge --force-samples -Oz -o combined.vcf.gz ${sep=" " Vcfs} && \
          /usr/bin/tabix -p vcf combined.vcf.gz && \
-         /usr/bin/python3 /usr/local/bin/filterHaloplex.py -r ${refFasta} combined.vcf.gz ${Cram} ${Name} > ${Name}.combined_and_tagged.vcf
+         /usr/bin/python3 /usr/local/bin/filterHaloplex.py -r ${refFasta} --minreadsperfamily ${default='3' MinReadsPerFamily} combined.vcf.gz ${Cram} ${Name} > ${Name}.combined_and_tagged.vcf
      }
 
      runtime {
@@ -357,10 +358,12 @@ task haloplex_qc {
      String jobGroup
      String queue
 
+     Int? MinReadsPerFamily
+
      String SampleOutDir = OutputDir + "/" + SubDir
 
      command {
-         /usr/bin/perl /usr/local/bin/CalculateCoverageQC.pl -r ${refFasta} -d ${SampleOutDir} -n ${Name} \
+         /usr/bin/perl /usr/local/bin/CalculateCoverageQC.pl -m ${default='3' MinReadsPerFamily} -r ${refFasta} -d ${SampleOutDir} -n ${Name} \
          -t ${CoverageBed} -q ${QcMetrics} -i ${Description} && \
          /bin/mv ./*.qc.txt ./*.qc.json ${SampleOutDir}
      }
