@@ -4,5 +4,7 @@
     "MyeloseqHD.SampleSheet":"PATH",
     "MyeloseqHD.OutputDir":"PATH",
     "MyeloseqHD.IlluminaDir":"PATH",
+    "MyeloseqHD.MinReads":5,
+    "MyeloseqHD.MinVaf":0.02,
     "MyeloseqHD.Queue":"gtac-mgi"
 }

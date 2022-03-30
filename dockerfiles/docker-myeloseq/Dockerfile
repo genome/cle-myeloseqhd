@@ -53,6 +53,7 @@ RUN pip install numpy && \
     pip install pyfaidx && \
     pip install intervaltree_bio && \
     pip install pandas && \
+    pip install cyvcf2 && \
     pip install biopython && \
     pip install scipy && \
     pip install scikit-learn && \
@@ -155,5 +156,7 @@ RUN cpan install JSON
 #filter script #
 ################
 
+COPY variantDB.py /usr/local/bin/
+COPY QC_metrics.pl /usr/local/bin/
 COPY filterHaloplex.py /usr/local/bin/
 COPY CalculateCoverageQC.pl /usr/local/bin/ 

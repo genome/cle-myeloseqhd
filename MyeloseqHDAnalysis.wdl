@@ -1,21 +1,35 @@
 workflow MyeloseqHDAnalysis {
-
-    String Cram
-    String CramIndex
+    String Bam
+    String BamIndex
+    String DragenVcf
+    String DragenVcfIndex
     String Name
-    
+
     String refFasta 
+    String ReferenceDict
     String Vepcache
+    String VariantDB
+
     String CoverageBed
     String HaplotectBed
-    String ReferenceDict
+    String AmpliconBed
 
     String CustomAnnotationVcf
     String CustomAnnotationIndex
     String CustomAnnotationParameters
 
+    String? GenotypeVcf
+
+    Int MinReads
+    Float MinVaf
     String QcMetrics
     String Description
+
+    String mrn
+    String accession
+    String DOB
+    String sex
+    String exception
 
     String SubDir
     String OutputDir
@@ -23,9 +37,38 @@ workflow MyeloseqHDAnalysis {
     String Queue
     String JobGroup 
 
+
+    call query_DB {
+        input: mrn=mrn,
+               accession=accession,
+               VariantDB=VariantDB,
+               queue=Queue,
+               jobGroup=JobGroup
+    }
+
+    call clean_variants as clean_queryDB_vcf {
+        input: Vcf=query_DB.query_vcf,
+               Name=Name,
+               refFasta=refFasta,
+               queue=Queue,
+               jobGroup=JobGroup
+    }
+
+    call convert_bam {
+        input: Bam=Bam,
+               BamIndex=BamIndex,
+               AmpliconBed=AmpliconBed,
+               refFasta=refFasta,
+               Name=Name,
+               OutputDir=OutputDir,
+               SubDir=SubDir,
+               queue=Queue,
+               jobGroup=JobGroup
+    }
+
     call run_freebayes {
-        input: Cram=Cram,
-               CramIndex=CramIndex,
+        input: Cram=convert_bam.cram,
+               CramIndex=convert_bam.crai,
                CoverageBed=CoverageBed,
                refFasta=refFasta,
                Name=Name,
@@ -42,8 +85,8 @@ workflow MyeloseqHDAnalysis {
     }
 
     call run_pindel_region as run_pindel_flt3itd {
-        input: Cram=Cram,
-               CramIndex=CramIndex,
+        input: Cram=convert_bam.cram,
+               CramIndex=convert_bam.crai,
                Reg=CoverageBed,
                refFasta=refFasta,
                Name=Name,
@@ -67,10 +110,12 @@ workflow MyeloseqHDAnalysis {
     }
 
     call combine_variants {
-        input: Vcfs=[clean_freebayes.cleaned_vcf_file,clean_pindel_itd.cleaned_vcf_file],
-               Cram=Cram,
-               CramIndex=CramIndex,
+        input: Vcfs=select_all([DragenVcf,clean_freebayes.cleaned_vcf_file,clean_pindel_itd.cleaned_vcf_file,clean_queryDB_vcf.cleaned_vcf_file,GenotypeVcf]),
+               Cram=convert_bam.cram,
+               CramIndex=convert_bam.crai,
                refFasta=refFasta,
+               Vaf=MinVaf,
+               Reads=MinReads,
                Name=Name,
                queue=Queue,
                jobGroup=JobGroup
@@ -88,11 +133,21 @@ workflow MyeloseqHDAnalysis {
                jobGroup=JobGroup
     }
 
+    call upload_DB {
+        input: Vcf=run_vep.filtered_vcf,
+               mrn=mrn,
+               accession=accession,
+               VariantDB=VariantDB,
+               CoverageBed=CoverageBed,
+               queue=Queue,
+               jobGroup=JobGroup
+    }
+
     call run_haplotect {
         input: refFasta=refFasta,
                refDict=ReferenceDict,
-               Cram=Cram,
-               CramIndex=CramIndex,
+               Cram=convert_bam.cram,
+               CramIndex=convert_bam.crai,
                Bed=HaplotectBed,
                Name=Name,
                queue=Queue,
@@ -100,7 +155,8 @@ workflow MyeloseqHDAnalysis {
     }
 
     call gather_files {
-        input: OutputFiles=[clean_pindel_itd.cleaned_vcf_file,
+        input: order_by=upload_DB.done,
+               OutputFiles=[clean_pindel_itd.cleaned_vcf_file,
                combine_variants.vcf,
                run_haplotect.out_file,
                run_haplotect.sites_file,
@@ -130,6 +186,47 @@ workflow MyeloseqHDAnalysis {
     }
 }
 
+
+task convert_bam {
+     String Bam
+     String BamIndex
+     String Name
+     String refFasta
+     String AmpliconBed
+     String OutputDir
+     String SubDir
+     String jobGroup
+     String queue
+
+     String outdir = OutputDir + "/" + SubDir
+
+     command <<<
+         /usr/local/bin/tagbam -v ${Bam} ${AmpliconBed} /tmp/tagged.bam > ${Name}.ampinfo.txt && \
+         /usr/local/bin/samtools view -T ${refFasta} -C -o "${Name}.cram" /tmp/tagged.bam && \
+         /usr/local/bin/samtools index "${Name}.cram" &&
+         (cut -f 5 ${Name}.ampinfo.txt && cut -f 4 ${AmpliconBed}) | sort | uniq -c | awk '!/\./ { print $2,$1-1; }' > ${Name}.ampcounts.txt && \
+         /bin/cp ${Name}.ampinfo.txt ${outdir} && \
+         /bin/cp ${Name}.ampcounts.txt ${outdir} && \
+         /bin/cp ${Name}.cram ${outdir} && \
+         /bin/cp ${Name}.cram.crai ${outdir}
+     >>>
+
+     runtime {
+         docker_image: "registry.gsc.wustl.edu/mgi-cle/myeloseqhd:v1"
+         cpu: "1"
+         memory: "24 G"
+         queue: queue
+         job_group: jobGroup
+     }
+
+     output {
+         File cram  = "${Name}.cram"
+         File crai = "${Name}.cram.crai"
+         File info = "${Name}.ampinfo.txt"
+         File counts = "${Name}.ampcounts.txt"
+     }
+}
+
 task run_freebayes {
      File Cram
      File CramIndex
@@ -146,7 +243,7 @@ task run_freebayes {
 
      command {
          /usr/local/bin/freebayes -C ${default=3 MinReads} -q ${default=13 MinMapQual} -F ${default="0.0008" MinFreq} -$ ${default=4 MaxMismatch} \
-         -f ${refFasta} -t ${CoverageBed} ${Cram} > "${Name}.freebayes.vcf"
+         -f ${refFasta} -t ${CoverageBed} -K ${Cram} > "${Name}.freebayes.vcf"
      }
 
      runtime {
@@ -250,12 +347,15 @@ task combine_variants {
      String Name
      String jobGroup
      String queue
+
+     Int? Reads
      Int? MinReadsPerFamily
+     Float? Vaf
 
      command {
-         /usr/local/bin/bcftools merge --force-samples -Oz -o combined.vcf.gz ${sep=" " Vcfs} && \
+         /usr/local/bin/bcftools merge --force-samples -Oz ${sep=" " Vcfs} | /usr/local/bin/bcftools sort -Oz -o combined.vcf.gz && \
          /usr/bin/tabix -p vcf combined.vcf.gz && \
-         /usr/bin/python3 /usr/local/bin/filterHaloplex.py -r ${refFasta} --minreadsperfamily ${default='3' MinReadsPerFamily} combined.vcf.gz ${Cram} ${Name} > ${Name}.combined_and_tagged.vcf
+         /usr/bin/python3 /home/fdu/git/cle-myeloseqhd/dockerfiles/docker-myeloseq/filterHaloplex.py -r ${refFasta} --minreadsperfamily ${default='3' MinReadsPerFamily} -m ${default='3' Reads} -d ${default='0.02' Vaf} combined.vcf.gz ${Cram} ${Name} > ${Name}.combined_and_tagged.vcf
      }
 
      runtime {
@@ -286,21 +386,21 @@ task run_vep {
          if [ $(/bin/grep -v '^#' ${CombineVcf}|/usr/bin/wc -l) == 0 ]; then
              /bin/cp ${CombineVcf} ${Name}.annotated.vcf && \
              /bin/cp ${CombineVcf} ${Name}.annotated_filtered.vcf && \
-             /opt/htslib/bin/bgzip ${Name}.annotated.vcf && /usr/bin/tabix -p vcf ${Name}.annotated.vcf.gz && \
-             /opt/htslib/bin/bgzip ${Name}.annotated_filtered.vcf && /usr/bin/tabix -p vcf ${Name}.annotated_filtered.vcf.gz && \
+             /usr/local/bin/bgzip ${Name}.annotated.vcf && /usr/local/bin/tabix -p vcf ${Name}.annotated.vcf.gz && \
+             /usr/local/bin/bgzip ${Name}.annotated_filtered.vcf && /usr/local/bin/tabix -p vcf ${Name}.annotated_filtered.vcf.gz && \
              /usr/bin/touch ${Name}.variants_annotated.tsv
          else
-             /usr/bin/perl -I /opt/lib/perl/VEP/Plugins /usr/bin/variant_effect_predictor.pl --format vcf \
+             /usr/bin/perl -I /opt/vep/lib/perl/VEP/Plugins /opt/vep/src/ensembl-vep/vep --format vcf \
              --vcf --plugin Downstream --fasta ${refFasta} --hgvs --symbol --term SO --flag_pick \
              -i ${CombineVcf} --custom ${CustomAnnotationVcf},${CustomAnnotationParameters} --offline --cache --max_af --dir ${Vepcache} -o ${Name}.annotated.vcf && \
-             /opt/htslib/bin/bgzip ${Name}.annotated.vcf && /usr/bin/tabix -p vcf ${Name}.annotated.vcf.gz && \
-             /usr/bin/perl -I /opt/lib/perl/VEP/Plugins /opt/vep/ensembl-vep/filter_vep -i ${Name}.annotated.vcf.gz --format vcf \
+             /usr/local/bin/bgzip ${Name}.annotated.vcf && /usr/local/bin/tabix -p vcf ${Name}.annotated.vcf.gz && \
+             /usr/bin/perl -I /opt/vep/lib/perl/VEP/Plugins /opt/vep/src/ensembl-vep/filter_vep -i ${Name}.annotated.vcf.gz --format vcf \
              --filter "(MAX_AF < ${default='0.001' maxAF} or not MAX_AF) or MYELOSEQ_TCGA_AC or MYELOSEQ_MDS_AC" -o ${Name}.annotated_filtered.vcf && \
-             /opt/htslib/bin/bgzip ${Name}.annotated_filtered.vcf && /usr/bin/tabix -p vcf ${Name}.annotated_filtered.vcf.gz
+             /usr/local/bin/bgzip ${Name}.annotated_filtered.vcf && /usr/local/bin/tabix -p vcf ${Name}.annotated_filtered.vcf.gz
          fi
      }
      runtime {
-         docker_image: "registry.gsc.wustl.edu/fdu/vep90-gatk3.6-htslib1.3.2:1"
+         docker_image: "registry.gsc.wustl.edu/mgi-cle/vep105-htslib1.9:1"
          cpu: "1"
          memory: "10 G"
          queue: queue
@@ -380,6 +480,7 @@ task haloplex_qc {
 }
 
 task gather_files {
+     String order_by
      Array[String] OutputFiles
      String OutputDir
      String? SubDir
@@ -399,5 +500,49 @@ task gather_files {
      }
      output {
          String done = stdout()
+     }
+}
+
+task upload_DB {
+     String Vcf
+     String mrn
+     String accession
+     String VariantDB
+     String CoverageBed
+     String jobGroup
+     String queue
+
+     command {
+         /usr/bin/python3 /usr/local/bin/variantDB.py -d ${VariantDB} -v ${Vcf} -c ${CoverageBed} -i ${mrn} -j ${accession}
+     }
+     runtime {
+         docker_image: "registry.gsc.wustl.edu/mgi-cle/myeloseqhd:v1"
+         memory: "4 G"
+         queue: queue
+         job_group: jobGroup
+     }
+     output {
+         String done = stdout()
+     }
+}
+
+task query_DB {
+     String mrn
+     String accession
+     String VariantDB
+     String jobGroup
+     String queue
+
+     command {
+         /usr/bin/python3 /usr/local/bin/variantDB.py -d ${VariantDB} -m ${mrn} -a ${accession}
+     }
+     runtime {
+         docker_image: "registry.gsc.wustl.edu/mgi-cle/myeloseqhd:v1"
+         memory: "4 G"
+         queue: queue
+         job_group: jobGroup
+     }
+     output {
+         File query_vcf = "${mrn}_${accession}_query.vcf"
      }
 }

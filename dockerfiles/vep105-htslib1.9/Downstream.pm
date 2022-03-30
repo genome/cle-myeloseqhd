@@ -1,7 +1,7 @@
 =head1 LICENSE
 
 Copyright [1999-2015] Wellcome Trust Sanger Institute and the EMBL-European Bioinformatics Institute
-Copyright [2016] EMBL-European Bioinformatics Institute
+Copyright [2016-2021] EMBL-European Bioinformatics Institute
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -17,18 +17,18 @@ limitations under the License.
 
 =head1 CONTACT
 
- Will McLaren <wm2@ebi.ac.uk>
+ Ensembl <http://www.ensembl.org/info/about/contact/index.html>
     
 =cut
 
 =head1 NAME
 
- Donwstream
+ Downstream
 
 =head1 SYNOPSIS
 
  mv Downstream.pm ~/.vep/Plugins
- perl variant_effect_predictor.pl -i variations.vcf --plugin Downstream
+ ./vep -i variations.vcf --plugin Downstream
 
 =head1 DESCRIPTION
 
@@ -43,6 +43,10 @@ limitations under the License.
  translation. Any variants with a splice site consequence type are
  ignored.
 
+ If VEP is run in offline mode using the flag --offline, a FASTA file is required.
+ See: https://www.ensembl.org/info/docs/tools/vep/script/vep_cache.html#fasta
+ Sequence may be incomplete without a FASTA file or database connection.
+
 =cut
 
 package Downstream;
@@ -51,6 +55,7 @@ use strict;
 use warnings;
 
 use Bio::EnsEMBL::Variation::Utils::BaseVepPlugin;
+use POSIX qw(ceil);
 
 use base qw(Bio::EnsEMBL::Variation::Utils::BaseVepPlugin);
 
@@ -90,7 +95,7 @@ sub run {
         # get the sequence to translate
         my ($low_pos, $high_pos) = sort {$a <=> $b} ($tv->cds_start, $tv->cds_end);
         my $is_insertion         = $tv->cds_start > $tv->cds_end ? 1 : 0;
-        my $last_complete_codon  = int($low_pos / 3) * 3;
+        my $last_complete_codon  = (ceil($low_pos / 3) - 1) * 3;
         my $before_var_seq       = substr $cds_seq, $last_complete_codon, $low_pos - $last_complete_codon - ($is_insertion ? 0 : 1);
         my $after_var_seq        = substr $cds_seq, $high_pos - ($is_insertion ? 1 : 0);
         my $to_translate         = $before_var_seq.$tva->feature_seq.$after_var_seq;

@@ -129,7 +129,7 @@ minmapqual = args.minmapqual
 
 # format fields:
 
-formats = ('GT','AD','DP','AO','RO','ST','LQRB','TAMP','SAMP','AMPS','CVAF')
+formats = ('GT','AD','DP','AO','RO','ST','LQRB','TAMP','SAMP','AMPS','VAF')
 
 ####################################
 #
@@ -155,8 +155,8 @@ vcffile.header.formats.add("ST", 1, 'String', 'Counts of plus and minus read cou
 vcffile.header.formats.add("TAMP", 1, 'Integer', 'Estimated number of Haloplex amplicons at this position')
 vcffile.header.formats.add("SAMP", 1, 'Integer', 'Estimated number of Haloplex amplicons at this position that support the alternate allele')
 vcffile.header.formats.add("AMPS", 1, 'String', 'Amplicon string, in the format amplicon id 1,num. reference alleles in amplicon 1, num. alternate alleles in amplicon 1;amplicon id 2,num ref, num alt;...')
-vcffile.header.formats.add("CVAF", 1, 'Float', 'Calculated VAF, which is based only on supporting amplicons with with >' + str(minampreadsforvaf) + ' reads')
-vcffile.header.add_line("##ampliconparseroptions={'minamplicons':"+str(minampnumber)+"'window':"+str(window)+",'minreads':"+str(minreads)+",'minampreadsforvaf':"+str(minampreadsforvaf)+"}")
+vcffile.header.formats.add("VAF", 1, 'Float', 'Variant allele fraction')
+vcffile.header.add_line("##ampliconparseroptions={'minamplicons':"+str(minampnumber)+"'window':"+str(window)+",'minreads':"+str(minreads)+"}")
 
 # remove unneeded formats
 for k in vcffile.header.formats.keys():
@@ -231,7 +231,7 @@ for vline in vcffile.fetch(reopen=True):
                             amplicons.append("NOTAG")
 
                         # skip if more than maxmismatches edit distance for this read or position in indel or
-                        if read.alignment.get_tag("SD") > maxmismatches/read.alignment.query_alignment_length or (not read.is_del and not read.is_refskip and int(read.alignment.query_qualities[read.query_position]) < minqual) or read.alignment.mapping_quality < minmapqual or not read.alignment.is_proper_pair:
+                        if read.alignment.get_tag("sd") > maxmismatches/read.alignment.query_alignment_length or (not read.is_del and not read.is_refskip and int(read.alignment.query_qualities[read.query_position]) < minqual) or read.alignment.mapping_quality < minmapqual or not read.alignment.is_proper_pair:
                             readquals.append('fail')
 
                         else:
@@ -332,7 +332,7 @@ for vline in vcffile.fetch(reopen=True):
                     numreads.append(int(read.get_tag("XV")))
 
                     # skip if more than maxmismatches edit distance for this read or position in indel or 
-                    if read.get_tag("SD") > maxmismatches/read.query_alignment_length or read.mapping_quality < minmapqual or not read.is_proper_pair:
+                    if read.get_tag("sd") > maxmismatches/read.query_alignment_length or read.mapping_quality < minmapqual or not read.is_proper_pair:
                         readquals.append('fail')
 
                     else:
@@ -366,9 +366,14 @@ for vline in vcffile.fetch(reopen=True):
         # total depth
         dp = passing.shape[0]
 
-        # dont even print these
-        if ao < minreads:
+        # dont even print variants with <minreads and the variant has no previous records from the database (indicated by the 'MyeloSeqHDDB' info field)
+        if ao < minreads and 'MyeloSeqHDDB' not in rec.info.keys():
             continue
+
+        # if the variant does exist in the database and there are fewer than minreads then set minreads to 0 because <minreads is below the validated threshold.
+        if ao < minreads and 'MyeloSeqHDDB' in rec.info.keys():
+            ao = 0
+        
 
         # total amplicons
         totalamplicons = passing["amplicons"].cat.remove_unused_categories().value_counts().count()
@@ -390,7 +395,7 @@ for vline in vcffile.fetch(reopen=True):
         failingreadvaf = readqual2x2[1][1]/(readqual2x2[1][1]+readqual2x2[0][1]) if (readqual2x2[1][1]+readqual2x2[0][1]) > 0 else 0
         failedreadbias = 0
         failedreadbiasstr = str(readqual2x2[0][0]) + "," + str(readqual2x2[0][1]) + ',' + str(readqual2x2[1][0]) + "," + str(readqual2x2[1][1]) + ","
-        if rec.samples[0]['GT'] != (1,1) and readdat[(readdat["calls"]=='ref')].shape[0] > 0 and readdat[(readdat["calls"]=='alt')].shape[0] > 0 and readdat[(readdat["readquals"]=='pass')].shape[0] > 0 and readdat[(readdat["readquals"]=='fail')].shape[0] > 0 and failingreadvaf > passingreadvaf: 
+        if 'GT' in rec.format.keys() and rec.samples[0]['GT'] != (1,1) and readdat[(readdat["calls"]=='ref')].shape[0] > 0 and readdat[(readdat["calls"]=='alt')].shape[0] > 0 and readdat[(readdat["readquals"]=='pass')].shape[0] > 0 and readdat[(readdat["readquals"]=='fail')].shape[0] > 0 and failingreadvaf > passingreadvaf: 
             failedreadbias = min(99,int(-10 * math.log(fisher_exact(readqual2x2)[1] or 1.258925e-10,10)))
 
         failedreadbiasstr = failedreadbiasstr + str(failedreadbias)
@@ -417,7 +422,7 @@ for vline in vcffile.fetch(reopen=True):
         sb2x2 = [[plusrefreads,minusrefreads],[plusaltreads,minusaltreads]]
         refstrandskewing = plusrefreads/(plusrefreads+minusrefreads)-.5 if (plusrefreads+minusrefreads) > 0 else 0
         altstrandskewing = plusaltreads/(plusaltreads+minusaltreads)-.5 if (plusaltreads+minusaltreads) > 0 else 0
-        if rec.samples[0]['GT'] != (1,1) and altstrandskewing * refstrandskewing < 0 and readdat[(readdat["calls"]=='ref')].shape[0] > 0 and readdat[(readdat["calls"]=='alt')].shape[0] > 0 and readdat[(readdat["strands"]=='+')].shape[0] > 0 and readdat[(readdat["strands"]=='-')].shape[0] > 0:
+        if 'GT' in rec.format.keys() and rec.samples[0]['GT'] != (1,1) and altstrandskewing * refstrandskewing < 0 and readdat[(readdat["calls"]=='ref')].shape[0] > 0 and readdat[(readdat["calls"]=='alt')].shape[0] > 0 and readdat[(readdat["strands"]=='+')].shape[0] > 0 and readdat[(readdat["strands"]=='-')].shape[0] > 0:
             sb = min(99,int(-10 * math.log(fisher_exact(sb2x2)[1] or 1.258925e-10,10)))
 
         # do filtering
@@ -452,6 +457,16 @@ for vline in vcffile.fetch(reopen=True):
 
         mysample=0
 
+        # for sites that require genotyping only
+        if 'MyeloSeqHDForceGT' in rec.info.keys() or 'GT' not in rec.format.keys():
+            if rawvaf > 0.2 and rawvaf < .98:
+                mygt = (0,1)
+            elif rawvaf <= .2:
+                mygt = (0,0)
+            else:
+                mygt = (1,1)
+
+                
         # make new record to harmonize format fields
         nrec = vcffile.new_record()
         nrec.chrom = rec.chrom
@@ -470,7 +485,7 @@ for vline in vcffile.fetch(reopen=True):
         nrec.samples[mysample]['TAMP'] = int(totalamplicons)
         nrec.samples[mysample]['SAMP'] = len(supportingamplicons)
         nrec.samples[mysample]['AMPS'] = ';'.join(ampliconcounts)
-        nrec.samples[mysample]['CVAF'] = rawvaf
+        nrec.samples[mysample]['VAF'] = rawvaf
 
         # this is a workaround because I cant remove format fields or copy the old record for some reason
         line = str(rec).rstrip().split("\t")[0:8]
