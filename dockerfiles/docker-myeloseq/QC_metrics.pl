@@ -17,7 +17,6 @@ umask 002;
 use JSON;
 use IO::File;
 use File::Basename;
-use Sort::Naturally;
 
 die "Provide myeloseq output dir" unless @ARGV and @ARGV == 1;
 my $dir = $ARGV[0];
