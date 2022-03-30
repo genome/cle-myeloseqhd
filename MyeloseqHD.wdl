@@ -28,7 +28,7 @@ workflow MyeloseqHD {
     String HaplotectBed = "/storage1/fs1/duncavagee/Active/SEQ/MyeloSeqHD/process/git/cle-myeloseqhd/accessory_files/myeloseq.haplotect_snppairs_hg38.bed"
     String AmpliconBed  = "/storage1/fs1/duncavagee/Active/SEQ/MyeloSeqHD/process/git/cle-myeloseqhd/accessory_files/MyeloseqHD.16462-1615924889.Amplicons.hg38.bed"
     String CoverageBed  = "/storage1/fs1/duncavagee/Active/SEQ/MyeloSeqHD/process/git/cle-myeloseqhd/accessory_files/MyeloseqHD.16462-1615924889.CoverageQC.hg38.bed"
-    String DragenCoverageBed = "/staging/runs/Haloplex/dragen_align_inputs/MyeloseqHD.16462-1615924889.CoverageQC.hg38.bed"
+    String DragenCoverageBed = "/staging/runs/MyeloSeqHD/dragen_align_inputs/MyeloseqHD.16462-1615924889.CoverageQC.hg38.bed"
 
     String CustomAnnotationVcf   = "/storage1/fs1/duncavagee/Active/SEQ/MyeloSeqHD/process/git/cle-myeloseqhd/accessory_files/myeloseq_custom_annotations.annotated.hg38.vcf.gz"
     String CustomAnnotationIndex = "/storage1/fs1/duncavagee/Active/SEQ/MyeloSeqHD/process/git/cle-myeloseqhd/accessory_files/myeloseq_custom_annotations.annotated.hg38.vcf.gz.tbi"
@@ -164,7 +164,7 @@ task dragen_demux {
      String queue
 
      String batch = basename(OutputDir)
-     String StagingDir = "/staging/runs/Haloplex/"
+     String StagingDir = "/staging/runs/MyeloSeqHD/"
      String LocalFastqDir = StagingDir + "demux_fastq/" + batch
      String LocalReportDir = LocalFastqDir + "/Reports"
      String LocalSampleSheet = StagingDir + "sample_sheet/" + batch + '.csv'
@@ -282,7 +282,7 @@ task dragen_align {
      Int readfamilysize
 
      String batch = basename(OutputDir)
-     String StagingDir = "/staging/runs/Haloplex/"
+     String StagingDir = "/staging/runs/MyeloSeqHD/"
      String LocalAlignDir = StagingDir + "align/" + batch
      String LocalSampleDir = LocalAlignDir + "/" + SubDir
      String log = StagingDir + "log/" + Name + "_align.log"
@@ -327,7 +327,7 @@ task move_demux_fastq {
      String queue
      String jobGroup
 
-     String LocalDemuxFastqDir = "/staging/runs/Haloplex/demux_fastq/" + Batch
+     String LocalDemuxFastqDir = "/staging/runs/MyeloSeqHD/demux_fastq/" + Batch
 
      command {
          if [ -d "${LocalDemuxFastqDir}" ]; then
