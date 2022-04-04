@@ -366,14 +366,13 @@ for vline in vcffile.fetch(reopen=True):
         # total depth
         dp = passing.shape[0]
 
-        # dont even print variants with <minreads and the variant has no previous records from the database (indicated by the 'MyeloSeqHDDB' info field)
-        if ao < minreads and 'MyeloSeqHDDB' not in rec.info.keys():
+        # dont even print variants with <minreads and the variant has no previous records from the database and its not a forceed genotype position (indicated by the 'MyeloSeqHDDB' info field)
+        if ao < minreads and 'MyeloSeqHDDB' not in rec.info.keys() and 'MyeloSeqHDForceGT' not in rec.info.keys():
             continue
 
         # if the variant does exist in the database and there are fewer than minreads then set minreads to 0 because <minreads is below the validated threshold.
         if ao < minreads and 'MyeloSeqHDDB' in rec.info.keys():
             ao = 0
-        
 
         # total amplicons
         totalamplicons = passing["amplicons"].cat.remove_unused_categories().value_counts().count()
