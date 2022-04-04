@@ -33,6 +33,9 @@ parser.add_argument("--minreadsperfamily", type=int, default=3,
 parser.add_argument('-n',"--maxreadmismatches",type=int,default=4,
                                         help='Maximum mismatches for a read to be counted')
 
+parser.add_argument('-u',"--maxnbasesinread",type=int,default=2,
+                                        help='Maximum N bases in read to be counted')
+
 parser.add_argument('-Q',"--minbasequal",type=int,default=15,
                                         help='Minium base quality to assess variant')
 
@@ -121,6 +124,9 @@ readfamilysize = args.minreadsperfamily
 # maximum number of mismatches in a read to count it (not including read indels)
 maxmismatches = args.maxreadmismatches
 
+# maximum number of N basecalls in read to be counted
+maxnbasesinread = args.maxnbasesinread
+
 # min base quality
 minqual = args.minbasequal
 
@@ -200,6 +206,9 @@ for vline in vcffile.fetch(reopen=True):
                 # only consider the variant position
                 if pileup.pos == rec.pos-1:
 
+                    # do this so we can construct our own filters!
+                    pileup.set_min_base_quality(0)
+
                     for read in pileup.pileups:
 
                         # get read family size
@@ -231,7 +240,7 @@ for vline in vcffile.fetch(reopen=True):
                             amplicons.append("NOTAG")
 
                         # skip if more than maxmismatches edit distance for this read or position in indel or
-                        if read.alignment.get_tag("sd") > maxmismatches/read.alignment.query_alignment_length or (not read.is_del and not read.is_refskip and int(read.alignment.query_qualities[read.query_position]) < minqual) or read.alignment.mapping_quality < minmapqual or not read.alignment.is_proper_pair:
+                        if read.alignment.get_tag("sd") > maxmismatches/read.alignment.query_alignment_length or read.alignment.seq.count('N') > maxnbasesinread or (not read.is_del and not read.is_refskip and int(read.alignment.query_qualities[read.query_position]) < minqual) or read.alignment.mapping_quality < minmapqual or not read.alignment.is_proper_pair:
                             readquals.append('fail')
 
                         else:
@@ -332,7 +341,7 @@ for vline in vcffile.fetch(reopen=True):
                     numreads.append(int(read.get_tag("XV")))
 
                     # skip if more than maxmismatches edit distance for this read or position in indel or 
-                    if read.get_tag("sd") > maxmismatches/read.query_alignment_length or read.mapping_quality < minmapqual or not read.is_proper_pair:
+                    if read.get_tag("sd") > maxmismatches/read.query_alignment_length or read.seq.count('N') > maxnbasesinread or read.mapping_quality < minmapqual or not read.is_proper_pair:
                         readquals.append('fail')
 
                     else:
@@ -366,13 +375,14 @@ for vline in vcffile.fetch(reopen=True):
         # total depth
         dp = passing.shape[0]
 
-        # dont even print variants with <minreads and the variant has no previous records from the database and its not a forceed genotype position (indicated by the 'MyeloSeqHDDB' info field)
+        # dont even print variants with <minreads and the variant has no previous records from the database (indicated by the 'MyeloSeqHDDB' info field)
         if ao < minreads and 'MyeloSeqHDDB' not in rec.info.keys() and 'MyeloSeqHDForceGT' not in rec.info.keys():
             continue
 
         # if the variant does exist in the database and there are fewer than minreads then set minreads to 0 because <minreads is below the validated threshold.
         if ao < minreads and 'MyeloSeqHDDB' in rec.info.keys():
             ao = 0
+
 
         # total amplicons
         totalamplicons = passing["amplicons"].cat.remove_unused_categories().value_counts().count()
