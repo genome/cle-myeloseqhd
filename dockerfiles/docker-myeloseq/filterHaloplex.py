@@ -66,6 +66,8 @@ parser.add_argument('-d',"--minvaf",type=float,default=0.02,
 parser.add_argument('-l',"--lowqualreadbiaspvalue",type=int,default=30,
                                         help='PHRED-scaled low quality read bias p-value cutoff')
 
+parser.add_argument("--minhqreads",type=int,default=90,
+                                        help='Minimum percent of reads that are high quality at variant position')
 # parse arguments
 args = parser.parse_args()
 
@@ -112,6 +114,8 @@ minstrandreads = args.minstrandreads
 
 lqrb_pvalue = args.lowqualreadbiaspvalue
 
+minhqreads = float(args.minhqreads)/100
+
 ####################################
 #
 # Get read filtering parameters
@@ -152,11 +156,12 @@ fa = pysam.FastaFile(args.reference)
 
 vcffile.header.filters.add("AMPSupport",None,None,'Fails requirement of having >='+str(minampnumber)+' amplicons with support for the variant')
 vcffile.header.filters.add("LowReads",None,None,'Fails requirement of having >='+str(minreads)+' supporting the variant')
-vcffile.header.filters.add("LowQualReadBias",None,None,'PHRED-scaled P-value > 10 of ref and alt alleles in failed vs. passing reads')
+vcffile.header.filters.add("LowQualReadBias",None,None,'PHRED-scaled P-value > 10 of non-variant vs variant alleles in failed vs. passing reads')
+vcffile.header.filters.add("LowQualReads",None,None,'Failed requirement of having a minimum of 90% high quality reads at the variant position')
 vcffile.header.filters.add("LowVAF",None,None,'Calculated VAF <'+str(minvaf))
 vcffile.header.filters.add("StrandSupport",None,None,'Variant allele support is lacking on one strand despite adequate coverage (binomial P < '+str(strandpvalue)+' for observing at least '+str(minreads)+' given the coverage on that strand')
 vcffile.header.filters.add("FisherStrandBias",None,None,'PHRED-scaled Fisher exact p-value of ref and alt reads on each strand is >20')
-vcffile.header.formats.add("LQRB", 1, 'String', 'HQ read ref allele count, LQ read ref allele count, HQ read alt allele count, LQ read alt allele count,PHRED-scaled P-value for Low Quality read allele bias')
+vcffile.header.formats.add("LQRB", 1, 'String', 'HQ read non-variant allele count, LQ read non-variant allele count, HQ read variant allele count, LQ read variant allele count,PHRED-scaled P-value for Low Quality read variant allele bias')
 vcffile.header.formats.add("ST", 1, 'String', 'Counts of plus and minus read counts for alt allele')
 vcffile.header.formats.add("TAMP", 1, 'Integer', 'Estimated number of Haloplex amplicons at this position')
 vcffile.header.formats.add("SAMP", 1, 'Integer', 'Estimated number of Haloplex amplicons at this position that support the alternate allele')
@@ -227,7 +232,6 @@ for vline in vcffile.fetch(reopen=True):
                         else:
                             calls.append('ref')
 
-
                         if read.alignment.is_reverse:
                             strands.append('-')
                         else:
@@ -240,7 +244,7 @@ for vline in vcffile.fetch(reopen=True):
                             amplicons.append("NOTAG")
 
                         # skip if more than maxmismatches edit distance for this read or position in indel or
-                        if read.alignment.get_tag("sd") > maxmismatches/read.alignment.query_alignment_length or read.alignment.seq.count('N') > maxnbasesinread or (not read.is_del and not read.is_refskip and int(read.alignment.query_qualities[read.query_position]) < minqual) or read.alignment.mapping_quality < minmapqual or not read.alignment.is_proper_pair:
+                        if read.alignment.get_tag("sd") > maxmismatches/read.alignment.query_alignment_length or read.alignment.seq.count('N') > maxnbasesinread or read.alignment.mapping_quality < minmapqual or not read.alignment.is_proper_pair or (not read.is_del and not read.is_refskip and (int(read.alignment.query_qualities[read.query_position]) < minqual or 'N' in read.alignment.seq[read.query_position:read.query_position+len(rec.alts[0])])):
                             readquals.append('fail')
 
                         else:
@@ -347,7 +351,6 @@ for vline in vcffile.fetch(reopen=True):
                     else:
                         readquals.append('pass')
 
-
         # now go through the evidence for the variant and print
 
         # make a dataframe with the calls and evidence from each read
@@ -383,14 +386,16 @@ for vline in vcffile.fetch(reopen=True):
         if ao < minreads and 'MyeloSeqHDDB' in rec.info.keys():
             ao = 0
 
-
         # total amplicons
         totalamplicons = passing["amplicons"].cat.remove_unused_categories().value_counts().count()
 
         # get number of amplicons with the alterate allele
         supportingamplicons = passing[(passing["calls"]=='alt')]["amplicons"].cat.remove_unused_categories().cat.categories        
 
-        rawvaf = ao / dp
+        if dp == 0:
+            rawvaf = 0
+        else:
+            rawvaf = ao / dp
 
         ampliconcounts = []
 
@@ -455,6 +460,10 @@ for vline in vcffile.fetch(reopen=True):
         if failedreadbias > lqrb_pvalue:
             rec.filter.add("LowQualReadBias")
 
+        if (readqual2x2[0][1] + readqual2x2[1][1]) > 0 and (readqual2x2[0][0] + readqual2x2[1][0]) / (readqual2x2[0][1] + readqual2x2[1][1]) < minhqreads:
+            rec.filter.add("LowQualReads")
+
+
         if len(rec.filter.values())==0:
             rec.filter.add("PASS")
 
@@ -467,7 +476,9 @@ for vline in vcffile.fetch(reopen=True):
         mysample=0
 
         # for sites that require genotyping only
-        if 'MyeloSeqHDForceGT' in rec.info.keys() or 'GT' not in rec.format.keys():
+        if 'MyeloSeqHDForceGT' in rec.info.keys() and dp > 100:
+            rec.filter.clear()
+            rec.filter.add("PASS")
             if rawvaf > 0.2 and rawvaf < .98:
                 mygt = (0,1)
             elif rawvaf <= .2:

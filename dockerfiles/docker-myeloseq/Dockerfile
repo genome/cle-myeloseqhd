@@ -159,4 +159,4 @@ RUN cpan install JSON
 COPY variantDB.py /usr/local/bin/
 COPY QC_metrics.pl /usr/local/bin/
 COPY filterHaloplex.py /usr/local/bin/
-COPY CalculateCoverageQC.pl /usr/local/bin/ 
+COPY make_hd_report.py /usr/local/bin/

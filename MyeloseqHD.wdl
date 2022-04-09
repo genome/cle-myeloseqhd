@@ -13,6 +13,7 @@ workflow MyeloseqHD {
     String? IlluminaDir
     String JobGroup
     String OutputDir
+    String RunInfoString
 
     String Queue
     String DragenQueue = "duncavagee"
@@ -22,8 +23,7 @@ workflow MyeloseqHD {
     String ReferenceDict = "/storage1/fs1/duncavagee/Active/SEQ/Chromoseq/process/refdata/hg38/all_sequences.dict"
 
     String VEP          = "/storage1/fs1/gtac-mgi/Active/CLE/reference/VEP_cache"
-    String QcMetrics    = "/storage1/fs1/duncavagee/Active/SEQ/MyeloSeqHD/process/git/cle-myeloseqhd/accessory_files/MyeloseqHDQCMetrics.txt"
-    String Description  = "/storage1/fs1/duncavagee/Active/SEQ/MyeloSeqHD/process/git/cle-myeloseqhd/accessory_files/MyeloseqDescription.txt"
+    String QcMetrics    = "/storage1/fs1/duncavagee/Active/SEQ/MyeloSeqHD/process/git/cle-myeloseqhd/accessory_files/MyeloseqHDQCMetrics.json"
 
     String HaplotectBed = "/storage1/fs1/duncavagee/Active/SEQ/MyeloSeqHD/process/git/cle-myeloseqhd/accessory_files/myeloseq.haplotect_snppairs_hg38.bed"
     String AmpliconBed  = "/storage1/fs1/duncavagee/Active/SEQ/MyeloSeqHD/process/git/cle-myeloseqhd/accessory_files/MyeloseqHD.16462-1615924889.Amplicons.hg38.bed"
@@ -110,6 +110,7 @@ workflow MyeloseqHD {
                    DOB=samples[9],
                    sex=samples[10],
                    exception=samples[11],
+                   RunInfoString=RunInfoString,
                    VariantDB=VariantDB,
                    Vepcache=VEP,
                    AmpliconBed=AmpliconBed,
@@ -121,7 +122,6 @@ workflow MyeloseqHD {
 		   MinVaf=MinVaf,
                    HaplotectBed=HaplotectBed,
                    QcMetrics=QcMetrics,
-                   Description=Description,
                    OutputDir=OutputDir,
                    SubDir=samples[1] + '_' + samples[0],
                    Queue=Queue,
@@ -297,7 +297,7 @@ task dragen_align {
 
          /bin/mkdir ${LocalSampleDir} && \
          /bin/mkdir ${outdir} && \
-         /opt/edico/bin/dragen -r ${DragenRef} --tumor-fastq1 ${fastq1} --tumor-fastq2 ${fastq2} --RGSM-tumor ${SM} --RGID-tumor ${RG} --RGLB-tumor ${LB} --enable-map-align true --enable-sort true --enable-map-align-output true --vc-enable-umi-liquid true --gc-metrics-enable=true --qc-coverage-region-1 ${CoverageBed} --qc-coverage-reports-1 full_res --umi-enable true --umi-library-type=random-simplex --umi-min-supporting-reads ${readfamilysize} --enable-variant-caller=true --vc-target-bed ${CoverageBed} --umi-metrics-interval-file ${CoverageBed} --read-trimmers=fixed-len --trim-r1-5prime=${default=1 TrimLen} --trim-r1-3prime=${default=1 TrimLen} --trim-r2-5prime=${default=1 TrimLen} --trim-r2-3prime=${default=1 TrimLen} --output-dir ${LocalSampleDir} --output-file-prefix ${Name} --output-format BAM &> ${log} && \
+         /opt/edico/bin/dragen -r ${DragenRef} --tumor-fastq1 ${fastq1} --tumor-fastq2 ${fastq2} --RGSM-tumor ${SM} --RGID-tumor ${RG} --RGLB-tumor ${LB} --enable-map-align true --enable-sort true --enable-map-align-output true --vc-enable-umi-liquid true --vc-combine-phased-variants-distance 3 --gc-metrics-enable=true --qc-coverage-region-1 ${CoverageBed} --qc-coverage-reports-1 full_res --umi-enable true --umi-library-type=random-simplex --umi-min-supporting-reads ${readfamilysize} --enable-variant-caller=true --vc-target-bed ${CoverageBed} --umi-metrics-interval-file ${CoverageBed} --read-trimmers=fixed-len --trim-r1-5prime=${default=1 TrimLen} --trim-r1-3prime=${default=1 TrimLen} --trim-r2-5prime=${default=1 TrimLen} --trim-r2-3prime=${default=1 TrimLen} --output-dir ${LocalSampleDir} --output-file-prefix ${Name} --output-format BAM &> ${log} && \
          /bin/mv ${log} ./ && \
          /bin/mv ${LocalSampleDir} ${dragen_outdir}
      }
@@ -352,6 +352,10 @@ task batch_qc {
      String jobGroup
 
      command {
+         if [ -n "$(/bin/ls -d ${BatchDir}/TW*)" ]; then
+             /bin/chmod -R 777 ${BatchDir}/TW*
+         fi
+
          /usr/bin/perl ${QC_pl} ${BatchDir}
      }
      runtime {
