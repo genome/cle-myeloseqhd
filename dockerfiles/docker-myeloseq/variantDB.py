@@ -97,9 +97,9 @@ if vcf or path:   #upload db
         cur.execute("create table myeloseqhd_variants (id integer primary key, mrn text, accession text, date text, version text, chromosome text, position integer, reference text, variant text, transcript_name text, consequence text, symbol text, gene_id text, exon text, intron text, p_syntax text, c_syntax text, coverage integer, vaf real, tamp integer, samp integer, amps text, UNIQUE (mrn, accession, chromosome, position, reference, variant) ON CONFLICT IGNORE)")
    
     if fnmatch.fnmatch(os.path.basename(covqc_bed), '*.b37.*'):
-        version = 'v0'
-    elif fnmatch.fnmatch(os.path.basename(covqc_bed), '*.hg38.*'):
         version = 'v1'
+    elif fnmatch.fnmatch(os.path.basename(covqc_bed), '*.hg38.*'):
+        version = 'v2'
     else:
         sys.exit("Unrecognized coverage QC bed: " + covqc_bed)
 
@@ -122,7 +122,15 @@ if vcf or path:   #upload db
                 warnings.warn("SKIP. Fail to get mrn and accession for: " + f)
                 continue
 
-        date = time.strftime('%Y-%m-%d_%H:%M:%S', time.localtime(os.path.getmtime(f)))
+        if version == 'v1':
+            pattern = r"_(\d{4}\-\d{2}\-\d{2}_\d{2}:\d{2}:\d{2})\."
+            result = re.search(pattern, os.path.basename(f))
+            if result:
+                date = result.group(1)
+            else:
+                sys.exit("Fail to get date for: " + f)
+        elif version == 'v2':
+            date = time.strftime('%Y-%m-%d_%H:%M:%S', time.localtime(os.path.getmtime(f)))
 
         vcf_parser = VCF(f)
         csq_fields = parse_csq_header(vcf_parser)
@@ -137,10 +145,10 @@ if vcf or path:   #upload db
             if not amps:
                 amps = 'N/A'
 
-            if version == 'v0':
+            if version == 'v1':
                 cov = int(variant.format("NR")[0][0])
                 vaf = round(float(variant.format("CVAF")[0][0]), 3)
-            elif version == 'v1':
+            elif version == 'v2':
                 cov = int(variant.format("DP")[0][0])
                 vaf = round(float(variant.format("VAF")[0][0]), 3)
 

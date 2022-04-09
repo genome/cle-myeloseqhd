@@ -9,6 +9,7 @@
     "MyeloseqHDAnalysis.DOB":"NAME",
     "MyeloseqHDAnalysis.sex":"NAME",
     "MyeloseqHDAnalysis.exception":"NAME",
+    "MyeloseqHDAnalysis.RunInfoString":"NAME",
     "MyeloseqHDAnalysis.DragenVcf":"PATH",
     "MyeloseqHDAnalysis.DragenVcfIndex":"PATH",
     "MyeloseqHDAnalysis.MinReads":5,
@@ -24,8 +25,7 @@
     "MyeloseqHDAnalysis.CustomAnnotationVcf":"/storage1/fs1/duncavagee/Active/SEQ/MyeloSeqHD/process/git/cle-myeloseqhd/accessory_files/myeloseq_custom_annotations.annotated.hg38.vcf.gz",
     "MyeloseqHDAnalysis.CustomAnnotationIndex":"/storage1/fs1/duncavagee/Active/SEQ/MyeloSeqHD/process/git/cle-myeloseqhd/accessory_files/myeloseq_custom_annotations.annotated.hg38.vcf.gz.tbi",
     "MyeloseqHDAnalysis.CustomAnnotationParameters":"MYELOSEQ,vcf,exact,0,TCGA_AC,MDS_AC,MYELOSEQBLACKLIST",
-    "MyeloseqHDAnalysis.QcMetrics":"/storage1/fs1/duncavagee/Active/SEQ/MyeloSeqHD/process/git/cle-myeloseqhd/accessory_files/MyeloseqHDQCMetrics.txt",
-    "MyeloseqHDAnalysis.Description":"/storage1/fs1/duncavagee/Active/SEQ/MyeloSeqHD/process/git/cle-myeloseqhd/accessory_files/MyeloseqDescription.txt",
+    "MyeloseqHDAnalysis.QcMetrics":"/storage1/fs1/duncavagee/Active/SEQ/MyeloSeqHD/process/git/cle-myeloseqhd/accessory_files/MyeloseqHDQCMetrics.json",
     "MyeloseqHDAnalysis.JobGroup":"/cle/wdl/haloplex",
     "MyeloseqHDAnalysis.Queue":"gtac-mgi"
 }

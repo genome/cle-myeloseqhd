@@ -23,13 +23,13 @@ workflow MyeloseqHDAnalysis {
     Int MinReads
     Float MinVaf
     String QcMetrics
-    String Description
 
     String mrn
     String accession
     String DOB
     String sex
     String exception
+    String RunInfoString
 
     String SubDir
     String OutputDir
@@ -168,13 +168,17 @@ workflow MyeloseqHDAnalysis {
                jobGroup=JobGroup
     }
 
-    call haloplex_qc {
+    call make_report {
         input: order_by=gather_files.done,
-               refFasta=refFasta,
                Name=Name,
+               mrn=mrn,
+               accession=accession,
+               DOB=DOB,
+               sex=sex,
+               exception=exception,
+               RunInfoString=RunInfoString,
                CoverageBed=CoverageBed,
                QcMetrics=QcMetrics,
-               Description=Description,
                OutputDir=OutputDir,
                SubDir=SubDir,
                queue=Queue,
@@ -182,7 +186,7 @@ workflow MyeloseqHDAnalysis {
     }
 
     output {
-        String all_done = haloplex_qc.done
+        String all_done = make_report.done
     }
 }
 
@@ -446,13 +450,17 @@ task run_haplotect {
      }
 }
 
-task haloplex_qc {
+task make_report {
      String order_by
-     String refFasta
      String Name
+     String mrn
+     String accession
+     String DOB
+     String sex
+     String exception
+     String RunInfoString
      String CoverageBed
      String QcMetrics
-     String Description
      String OutputDir
      String SubDir
      String jobGroup
@@ -463,9 +471,9 @@ task haloplex_qc {
      String SampleOutDir = OutputDir + "/" + SubDir
 
      command {
-         /usr/bin/perl /usr/local/bin/CalculateCoverageQC.pl -m ${default='3' MinReadsPerFamily} -r ${refFasta} -d ${SampleOutDir} -n ${Name} \
-         -t ${CoverageBed} -q ${QcMetrics} -i ${Description} && \
-         /bin/mv ./*.qc.txt ./*.qc.json ${SampleOutDir}
+         /usr/bin/perl /usr/local/bin/make_hd_report.py -n ${Name} -d ${SampleOutDir} -c ${CoverageBed} -q ${QcMetrics} \
+         -m ${mrn} -a ${accession} -b ${DOB} -e ${exception} -i ${RunInfoString} && \
+         /bin/mv ./*.report.txt ./*.report.json ${SampleOutDir}
      }
      runtime {
          docker_image: "registry.gsc.wustl.edu/mgi-cle/myeloseqhd:v1"
