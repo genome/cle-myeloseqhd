@@ -471,7 +471,7 @@ task make_report {
      String SampleOutDir = OutputDir + "/" + SubDir
 
      command {
-         /usr/bin/perl /usr/local/bin/make_hd_report.py -n ${Name} -d ${SampleOutDir} -c ${CoverageBed} -q ${QcMetrics} \
+         /usr/bin/python3 /usr/local/bin/make_hd_report.py -n ${Name} -d ${SampleOutDir} -c ${CoverageBed} -q ${QcMetrics} \
          -m ${mrn} -a ${accession} -b ${DOB} -e ${exception} -i ${RunInfoString} && \
          /bin/mv ./*.report.txt ./*.report.json ${SampleOutDir}
      }
