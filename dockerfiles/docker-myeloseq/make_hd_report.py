@@ -49,13 +49,13 @@ parser.add_argument('-n','--name',required=True,help='Sample name')
 parser.add_argument('-d','--dir',required=True,help='Output directory')
 parser.add_argument('-c','--coverageqc',required=True,help='Coverage QC file')
 parser.add_argument('-q','--qcrangejsonfile',required=True,help='QCReferenceRanges.json')
-parser.add_argument('-m','--mrn',default='None',help='Sample MRN number')
-parser.add_argument('-a','--accession',default='None',help='Sample accession number')
-parser.add_argument('-s','--specimen',default='None',help='Sample specimen type')
-parser.add_argument('-b','--DOB',default='None',help='Date of birth')
-parser.add_argument('-e','--exception',default='None',help='Exception')
+parser.add_argument('-m','--mrn',default='NONE',help='Sample MRN number')
+parser.add_argument('-a','--accession',default='NONE',help='Sample accession number')
+parser.add_argument('-s','--specimen',default='NONE',help='Sample specimen type')
+parser.add_argument('-b','--DOB',default='NONE',help='Date of birth')
+parser.add_argument('-e','--exception',default='NONE',help='Exception')
 parser.add_argument('-f','--minvaf',default=2.0,help='Minimum VAF for discovery analysis')
-parser.add_argument('-i','--runinfostr',default='None',help='Illumina Run Information String')
+parser.add_argument('-i','--runinfostr',default='NONE',help='Illumina Run Information String')
 parser.add_argument('-p','--maxaf',default=0.001,help='Maximum population allele frequency for potential somatic variants')
 
 args = parser.parse_args()
@@ -144,11 +144,11 @@ variants = pd.DataFrame(columns=['category','type','filter','chrom','pos','ref',
 #
 #########################################
 
-if caseinfo['run_info_str'] == 'None':
-    caseinfo['runid'] = 'None'
-    caseinfo['instrument'] = 'None'
-    caseinfo['spec'] = 'None'
-    caseinfo['flowcell'] = 'None'
+if caseinfo['run_info_str'] == 'NONE':
+    caseinfo['runid'] = 'NONE'
+    caseinfo['instrument'] = 'NONE'
+    caseinfo['spec'] = 'NONE'
+    caseinfo['flowcell'] = 'NONE'
 else:
     run_info = caseinfo['run_info_str'].split(',')
     caseinfo['runid'] = run_info[0]
@@ -324,7 +324,7 @@ if vcf.contains('MyeloSeqHDDB_FIELDS'):
         i+=1
 
 # get indicator variable with prior cases
-priorcases = 'None'
+priorcases = 'NONE'
 if vcf.contains('MyeloSeqHDDB_ACCESSIONLIST'):
     priorcases = vcf.get_header_type('MyeloSeqHDDB_ACCESSIONLIST')['MyeloSeqHDDB_ACCESSIONLIST']
 
@@ -463,11 +463,11 @@ print("DOB:\t" + caseinfo['DOB'])
 print("RUNID:\t" + caseinfo['runid'])
 print("INSTRUMENT:\t" + caseinfo['instrument'])
 print("FLOWCELL:\t" + caseinfo['flowcell'])
-if (caseinfo['exception'] != 'None'):
+if (caseinfo['exception'] != 'NONE'):
     caseinfo['exception'] = caseinfo['exception'] + "\t(!)"
 print("EXCEPTIONS:\t" + caseinfo['exception'])
 
-if (priorcases != 'None'):
+if (priorcases != 'NONE'):
     priorcases = priorcases + "\t(!)"
 print("PRIOR CASES:\t" + priorcases + "\n")
 
@@ -547,7 +547,7 @@ if covqcdf[(covqcdf.Type == "hotspot") & (covqcdf.covLevel1 == 0)].shape[0] > 0:
     print(covqcdf[(covqcdf.Type == "hotspot") & (covqcdf.covLevel1 == 0)].to_csv(sep='\t',header=True, index=False))
     jsonout['QC']['FAILED HOTSPOTS'] = covqcdf[(covqcdf.Type == "hotspot") & (covqcdf.covLevel1 == 0)].to_dict('split')
 else:
-    print("None\n")
+    print("NONE\n")
 
 print("*** GENE COVERAGE QC ***\n")
 
@@ -573,7 +573,7 @@ jsonout['QC']['FAILED EXON COUNT'] = xdf[(xdf.QC!='')]['Region'].shape[0]
 if xdf[(xdf.QC!='')].shape[0] > 0:
     print(xdf[(xdf.QC!='')].to_csv(sep='\t',header=True, index=False,float_format='%.1f'))
 else:
-    print("None\n")
+    print("NONE\n")
 
 print("*** Haplotect Contamination Estimate ***\n")
 
