@@ -56,7 +56,11 @@ my %group4 = (
     FAILED_EXON_COUNT => 'FAILED EXON COUNT',
 );
 
-my @headers = ('Case', (sort keys %group1), (sort keys %group2), (sort keys %group3), (sort keys %group4));
+my %group5 = (
+    FAILED_HOTSPOTS => 'FAILED HOTSPOTS',
+);
+
+my @headers = ('Case', (sort keys %group1), (sort keys %group2), (sort keys %group3), (sort keys %group4), (sort keys %group5));
 
 my $out_file = $dir.'/QC_metrics.tsv';
 my $out_fh = IO::File->new(">$out_file") or die "Failed to write to $out_file";
@@ -116,6 +120,19 @@ for my $case_name (readdir $dir_h) {
             else {
                 $value = 'NONE';
             }
+        }
+        push @values, $value;
+    }
+
+    for my $metric5 (sort keys %group5) {
+        my $json_key = $group5{$metric5};
+        my $value;
+        if (%{$data->{QC}->{$json_key}}) {
+            my @spots = @{$data->{QC}->{$json_key}->{data}};
+            $value = join ',', map{$_->[0].'_'.$_->[2]}@spots;
+        }
+        else {
+            $value = 'NONE';
         }
         push @values, $value;
     }
