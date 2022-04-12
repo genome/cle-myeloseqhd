@@ -200,7 +200,7 @@ qcdf = pd.concat([qcdf,dfpct])
 
 qcdf = pd.concat([qcdf,pd.DataFrame([{'metric':'UMI SUMMARY: Median read family size','value':medianRFsize}])])
 qcdf = pd.concat([qcdf,pd.DataFrame([{'metric':'UMI SUMMARY: Read families less than 3x','value':umi2x}])])
-qcdf = pd.concat([qcdf,pd.DataFrame([{'metric':'UMI SUMMARY: Read families less than 3x (%)','value':umi2x/int(df.loc[df['metric']=='UMI SUMMARY: Total number of families','value'].iat[0])*100}])])
+qcdf = pd.concat([qcdf,pd.DataFrame([{'metric':'UMI SUMMARY: Read families less than 3x (%)','value':round(umi2x/int(df.loc[df['metric']=='UMI SUMMARY: Total number of families','value'].iat[0])*100,1)}])])
 
 # read in target metrics
 df = pd.read_csv(targetmetrics,sep=',',names=['group','readgroup','metric','value','percent'])
@@ -222,7 +222,7 @@ df['readcounts'] = df['readcounts'] / 2
 
 qcdf = pd.concat([qcdf,pd.DataFrame([{'metric':'AMPLICON SUMMARY: Mean read pairs per amplicon','value':df['readcounts'].mean()}])])
 qcdf = pd.concat([qcdf,pd.DataFrame([{'metric':'AMPLICON SUMMARY: Amplicons at 0x (%)','value':df[df['readcounts']==0].shape[0] / df.shape[0] * 100}])])
-qcdf = pd.concat([qcdf,pd.DataFrame([{'metric':'AMPLICON SUMMARY: Amplicons with low coverage (%)','value':df[df['readcounts']<=df['readcounts'].mean()].shape[0] / df.shape[0] * 100}])])
+qcdf = pd.concat([qcdf,pd.DataFrame([{'metric':'AMPLICON SUMMARY: Amplicons with low coverage (%)','value':round(df[df['readcounts']<=df['readcounts'].mean()].shape[0] / df.shape[0] * 100,1)}])])
 
 # get coverage info
 
@@ -294,6 +294,7 @@ covqcdf.fillna(0)
     
 # get haplotect output
 haplotectdf = pd.read_csv(haplotect,sep='\t')
+haplotectdf = haplotectdf.iloc[:, :-2]
 haplotectlocidf = pd.read_csv(haplotectloci,sep='\t',skiprows=2)
 haplotectlocidf = haplotectlocidf.iloc[:, :-1]
 
@@ -343,7 +344,7 @@ for variant in vcf:
     if variant.FILTER is not None:
         varfilter = variant.FILTER
 
-    abundance = variant.format('VAF')[0][0] * 100
+    abundance = round(variant.format('VAF')[0][0] * 100,2)
     tamp = variant.format('TAMP')[0][0]
     samp = variant.format('SAMP')[0][0]
 
@@ -391,19 +392,19 @@ for variant in vcf:
 
             popmaf = 'NA'
             if csq[vep['MAX_AF']] != '':
-                popmaf = float(csq[vep['MAX_AF']])*100
+                popmaf = round(float(csq[vep['MAX_AF']])*100,2)
 
 
             if csq[vep['MYELOSEQ_TCGA_AC']] or csq[vep['MYELOSEQ_MDS_AC']]:
                 customannotation = 'AMLTCGA=' + str(csq[vep['MYELOSEQ_TCGA_AC']] or 0) + '&' + 'MDS=' + str(csq[vep['MYELOSEQ_MDS_AC']] or 0)
 
-    priorvariants = ''
+    priorvariants = 'NA'
     # get information about prior variants
     if variant.INFO.get('MyeloSeqHDDB'):
         msdbrecords = []
         for v in variant.INFO['MyeloSeqHDDB'].split(','):
             pvnfo = dict(zip(mshddb.keys(),v.split('|')))
-            msdbrecords.append('|'.join([pvnfo['accession'],pvnfo['date'],str(float(pvnfo['vaf'])*100)+'%']))
+            msdbrecords.append('|'.join([pvnfo['accession'],pvnfo['date'],str(round(float(pvnfo['vaf'])*100,2))+'%']))
             
         if len(msdbrecords) > 0:
             priorvariants = ','.join(msdbrecords)
@@ -425,8 +426,12 @@ for variant in vcf:
     elif varfilter == 'PASS' and popmaf != 'NA' and float(popmaf) > caseinfo['maxaf'] and customannotation =='NA' and variant.QUAL is not None and variant.QUAL >= 1000:
         category = 'SNP'
         
-    elif varfilter == 'PASS' and abundance >= caseinfo['mindiscoveryvaf']:
+    elif (varfilter == 'PASS' and abundance >= caseinfo['mindiscoveryvaf']) or (priorvariants != 'NA' and abundance > 0):
         category = 'Tier1-3'
+
+    elif priorvariants != 'NA' and abundance == 0:
+        category = 'NotDetected'
+        samp = 0
         
     # pass filters but <VAF and popmaf <0.1%
     elif varfilter == 'LowVAF':
@@ -435,7 +440,7 @@ for variant in vcf:
     else:
         category = 'Filtered'
 
-    variants = pd.concat([variants,pd.DataFrame([dict(zip(variants.columns,[category,vartype,varfilter,str(variant.CHROM),str(variant.POS),variant.REF,variant.ALT[0],genotype,gene,transcript,consequence,csyntax,psyntax,exon,str(popmaf) + '%',customannotation,str(variant.format("DP")[0][0]),str(variant.format("AO")[0][0]),str(round(abundance,3))+"%",tamp,samp,priorvariants]))])])
+    variants = pd.concat([variants,pd.DataFrame([dict(zip(variants.columns,[category,vartype,varfilter,str(variant.CHROM),str(variant.POS),variant.REF,variant.ALT[0],genotype,gene,transcript,consequence,csyntax,psyntax,exon,str(popmaf) + '%',customannotation,str(variant.format("DP")[0][0]),str(variant.format("AO")[0][0]),str(abundance)+"%",tamp,samp,priorvariants]))])])
 
 print("Starting report...",file=sys.stderr)
     
@@ -444,7 +449,7 @@ print("Starting report...",file=sys.stderr)
 #
 
 # make dict for report and redirect output for text report
-jsonout = {'CASEINFO':{},'VARIANTS':{'TIER1-3':{},'LOWLEVEL':{},'FILTERED':{},'SNPS':{},'GENOTYPES':{}},'QC':{}}
+jsonout = {'CASEINFO':{},'VARIANTS':{'TIER1-3':{},'NOTDETECTED':{},'LOWLEVEL':{},'FILTERED':{},'SNPS':{},'GENOTYPES':{}},'QC':{}}
 
 f = open(caseinfo['name'] + ".report.txt", "w")
 sys.stdout = f
@@ -473,11 +478,19 @@ print("PRIOR CASES:\t" + priorcases + "\n")
 
 jsonout['CASEINFO'] = caseinfo
 
-print("*** SOMATIC MUTATIONS ***\n")
+print("*** REPORTABLE MUTATIONS (>2% VAF OR PRIOR VARIANTS >0.1% VAF) ***\n")
 
 if variants[variants['category']=='Tier1-3'].shape[0] > 0:
     print(variants[variants['category']=='Tier1-3'].iloc[:,1:].to_csv(sep='\t',header=True, index=False))
     jsonout['VARIANTS']['TIER1-3'] = variants[variants['category']=='Tier1-3'].iloc[:,1:].to_dict('split')   
+else:
+    print("None Detected\n")
+
+print("*** PRIOR MUTATIONS NOT DETECTED IN THIS CASE ***\n")
+
+if variants[variants['category']=='NotDetected'].shape[0] > 0:
+    print(variants[variants['category']=='NotDetected'].iloc[:,1:].to_csv(sep='\t',header=True, index=False))
+    jsonout['VARIANTS']['NOTDETECTED'] = variants[variants['category']=='NotDetected'].iloc[:,1:].to_dict('split')
 else:
     print("None Detected\n")
 
