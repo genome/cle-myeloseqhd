@@ -100,7 +100,9 @@ for my $case_name (readdir $dir_h) {
  
     for my $metric2 (sort keys %group2) {
         my ($up_json_key, $json_key) = $group2{$metric2} =~ /^(\S+):\s(.+)$/;
-        push @values, $data->{QC}->{$up_json_key}->{$json_key};        
+        my $value = $data->{QC}->{$up_json_key}->{$json_key};
+        $value = 'NONE' unless $value;
+        push @values, $value;
     }
 
     for my $metric3 (sort keys %group3) {
