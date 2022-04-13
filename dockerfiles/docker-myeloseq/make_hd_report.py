@@ -285,6 +285,7 @@ geneqcdf['covLevel2'] = geneqcdf['nt']/geneqcdf['len']*100
 geneqcdf = geneqcdf[['Gene','len','Mean','covLevel1','covLevel2']]
 geneqcdf['Type'] = 'Gene'
 geneqcdf['Region'] = 'Gene'
+geneqcdf.fillna(0, inplace=True)
 
 covqcdf = pd.concat([covqcdf,geneqcdf[['Gene','Type','Region','Mean','covLevel1','covLevel2']]])
 covqcdf["Mean"] = covqcdf["Mean"].map(lambda x: float(x))
@@ -295,6 +296,8 @@ covqcdf.fillna(0)
 # get haplotect output
 haplotectdf = pd.read_csv(haplotect,sep='\t')
 haplotectdf = haplotectdf.iloc[:, :-2]
+haplotectdf.fillna(0, inplace=True)
+
 haplotectlocidf = pd.read_csv(haplotectloci,sep='\t',skiprows=2)
 haplotectlocidf = haplotectlocidf.iloc[:, :-1]
 
