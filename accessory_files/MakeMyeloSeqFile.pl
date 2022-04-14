@@ -6,13 +6,13 @@ die "bedtools: $bedtools not found" if !-e $bedtools;
 
 my $exonslop = 2;
 
-my $usage = "$0 <gtf file> <Haloplex Covered Design File> <Haloplex Amplicon Design File> <hotspot bed file> <coverage bed name> <amplicon bed name>";
+my $usage = "$0 <gtf file> <gene name> <Haloplex Amplicon Design File> <hotspot bed file> <coverage bed name> <amplicon bed name>";
 
 # note, hotspot bed file should be in the format: chr start end HOTSPOTQC gene_name exon_number codon_numbers . .
 
-my ($gtf,$design,$amplicons,$hotspots,$coverageBed,$ampliconBed) = @ARGV;
+my ($gtf,$genelist,$amplicons,$hotspots,$coverageBed,$ampliconBed) = @ARGV;
 
-die $usage if !-s $gtf or !-s $design or !-s $amplicons or !-s $hotspots or !$coverageBed or !$ampliconBed;
+die $usage if !-s $gtf or !-s $amplicons or !-s $hotspots or !-s $genelist or !$coverageBed or !$ampliconBed;
 
 my %genes = ();
 
@@ -21,19 +21,17 @@ my %exons = ();
 
 print STDERR "Loading design file...\n";
 
-open(F,$design) || die "cant open file $design";
+open(F,$genelist) || die "cant open file $genelist";
 while(<F>){
     chomp;
-    my @l = split(/\t/,$_);
-    next if scalar @l < 4;
-    my @names = split(",",$l[3]);
-    map { $exons{$_} = 1 } @names;
+    $genes{$_} = 1;
+    $exons{$_} = 1;
 }
 close F;
 
 print STDERR "Loading GTF file...\n";
 
-open(F,$gtf) || die "Cant open annotation file: $gtf";
+open(F,"gunzip -c $gtf |") || die "Cant open annotation file: $gtf";
 while(<F>){
     next if /^#/;
     
@@ -66,11 +64,11 @@ while(<F>){
 print STDERR "Generating coverage QC file...\n";
 
 # generate gene-level bed file
-open(B,"| sort -u -k 1,1V -k 2,2n -k 4,4V -k 5,5n | intersectBed -a stdin -b $design > $coverageBed") or die;
+open(B,"| sort -u -k 1,1V -k 2,2n -k 4,4V -k 5,5n | intersectBed -a stdin -b $amplicons -wa | sort -u -k 1,1V -k 2,2n > $coverageBed") or die;
 foreach my $g (keys %exons){
     foreach my $e (@{$exons{$g}}){
 	print B join("\t",$$e{chr},$$e{start}-1-$exonslop,$$e{end}+$exonslop,
-		     $g . '_exon_' . $$e{exon_number},$$e{strand},$g,(($$e{end}+$exonslop) - ($$e{start}-1-$exonslop))+2,
+		     $g . '_exon_' . $$e{exon_number},$$e{strand},$g,(($$e{end}+$exonslop) - ($$e{start}-1-$exonslop)),
 		     $$e{gene_id},$$e{transcript_id}),"\n";
     }
 }
