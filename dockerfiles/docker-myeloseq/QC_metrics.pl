@@ -32,12 +32,11 @@ my %group1 = (
     MISMATCH_RATE_2    => 'MAPPING/ALIGNING SUMMARY: Mismatched bases R2 (%)',
     PCT_MAPPED_READS   => 'MAPPING/ALIGNING SUMMARY: Mapped reads (%)',
     MEDIAN_INSERT_SIZE => 'MAPPING/ALIGNING SUMMARY: Insert length: median',
-    PCT_TARGET_ALIGNED_READS     => 'COVERAGE SUMMARY: Aligned reads in target region (%)',
-    AVG_ALIGN_TARGET_COVERAGE    => 'COVERAGE SUMMARY: Average alignment coverage over target region',
-    UMI_TARGET_MEAN_FAMILY_DEPTH => 'UMI SUMMARY: On target mean family depth',
-    UMI_PCT_READ_FAMILY_LESS_3X  => 'UMI SUMMARY: Read families less than 3x (%)',
-    UMI_MEDIAN_READ_FAMILY_SIZE  => 'UMI SUMMARY: Median read family size',
-    PCT_LOW_COVERAGE_AMPLICON    => 'AMPLICON SUMMARY: Amplicons with low coverage (%)',
+    PCT_TARGET_ALIGNED_READS  => 'COVERAGE SUMMARY: Aligned reads in target region (%)',
+    AVG_ALIGN_TARGET_COVERAGE => 'COVERAGE SUMMARY: Average alignment coverage over target region',
+    PCT_LOW_COVERAGE_AMPLICON => 'AMPLICON SUMMARY: Amplicons with low coverage (%)',
+    UMI_TARGET_MEAN_FAMILY_DEPTH    => 'UMI SUMMARY: On target mean family depth',
+    UMI_PCT_DISCARDED_READ_FAMILIES => 'UMI SUMMARY: Families discarded (%)',
 );
 
 my %group2 = (
@@ -92,8 +91,8 @@ for my $case_name (readdir $dir_h) {
         my $json_key = $group1{$metric1};
         my ($up_json_key) = $json_key =~ /^(\S+\sSUMMARY):\s/;
         my $value = $data->{QC}->{$up_json_key}->{$json_key};
-        if ($metric1 eq 'PCT_LOW_COVERAGE_AMPLICON' or $metric1 eq 'UMI_PCT_READ_FAMILY_LESS_3X') {
-           $value = sprintf("%.2f", $value); 
+        if ($metric1 eq 'PCT_LOW_COVERAGE_AMPLICON') {
+            $value = sprintf("%.2f", $value); 
         }
         push @values, $value;
     }
