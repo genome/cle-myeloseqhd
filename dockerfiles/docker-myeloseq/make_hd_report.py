@@ -187,20 +187,8 @@ dfpct['metric'] = dfpct['metric'].apply(lambda x: x + ' (%)')
 dfpct['value'] = dfpct['percent']
 dfpct = dfpct.drop(columns='percent')
 
-umiHist = list(map(int,re.sub('{|}','',df.loc[df['metric']=='UMI SUMMARY: Histogram of num supporting fragments','value'].iat[0]).split('|')))
-umi2x = int(df.loc[df['metric']=='UMI SUMMARY: Total number of families','value'].iat[0]) - sum(umiHist[3:])
-medianRFsize = 0
-rfSum = 0
-while rfSum <= int(df.loc[df['metric']=='UMI SUMMARY: Total number of families','value'].iat[0])/2:
-    rfSum = rfSum + umiHist[medianRFsize]
-    medianRFsize = medianRFsize + 1
-
 qcdf = pd.concat([qcdf,df])
 qcdf = pd.concat([qcdf,dfpct])
-
-qcdf = pd.concat([qcdf,pd.DataFrame([{'metric':'UMI SUMMARY: Median read family size','value':medianRFsize}])])
-qcdf = pd.concat([qcdf,pd.DataFrame([{'metric':'UMI SUMMARY: Read families less than 3x','value':umi2x}])])
-qcdf = pd.concat([qcdf,pd.DataFrame([{'metric':'UMI SUMMARY: Read families less than 3x (%)','value':round(umi2x/int(df.loc[df['metric']=='UMI SUMMARY: Total number of families','value'].iat[0])*100,1)}])])
 
 # read in target metrics
 df = pd.read_csv(targetmetrics,sep=',',names=['group','readgroup','metric','value','percent'])
