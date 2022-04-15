@@ -413,8 +413,8 @@ for variant in vcf:
     elif impact not in ['HIGH','MODERATE'] and consequence != 'splice_region_variant':
         category = 'Silent/Not Reported'
 
-    # maf filter
-    elif varfilter == 'PASS' and popmaf != 'NA' and float(popmaf) > caseinfo['maxaf'] and customannotation =='NA' and variant.QUAL is not None and variant.QUAL >= 1000:
+    # maf filter, if there are low level variants with a MAF, put them in another category
+    elif varfilter == 'PASS' and popmaf != 'NA' and float(popmaf) > caseinfo['maxaf'] and customannotation =='NA':
         category = 'SNP'
         
     elif (varfilter == 'PASS' and abundance >= caseinfo['mindiscoveryvaf']) or (priorvariants != 'NA' and abundance > 0):
