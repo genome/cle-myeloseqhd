@@ -49,6 +49,7 @@ my $fh = IO::File->new($sample_sheet) or die "fail to open $sample_sheet";
 my %info;
 
 while (my $line = $fh->getline) {
+    chomp $line;
     my @columns = split /\t/, $line;
     $info{$columns[1]} = {
         mrn       => $columns[7],
