@@ -137,9 +137,11 @@ minqual = args.minbasequal
 # minimum mapping quality
 minmapqual = args.minmapqual
 
-# format fields:
+# valid fields (only these will be returned, to minimize clutter):
 
 formats = ('GT','AD','DP','AO','RO','ST','LQRB','TAMP','SAMP','AMPS','VAF')
+infotags = ('END','hotspot','FractionInformativeReads','SVLEN','SVTYPE','MyeloSeqHDDB','MyeloSeqHDForceGT')
+filters = ('PASS')
 
 ####################################
 #
@@ -153,6 +155,21 @@ vcffile = pysam.VariantFile(args.vcffile)
 samfile = pysam.AlignmentFile(args.bamfile,"rb")
 # open reffasta
 fa = pysam.FastaFile(args.reference)
+
+# remove unneeded formats
+for k in vcffile.header.formats.keys():
+    if k not in formats:
+        vcffile.header.formats[k].remove_header()
+
+# remove unneeded info tags
+for k in vcffile.header.info.keys():
+    if k not in infotags:
+        vcffile.header.info[k].remove_header()
+
+# remove unneeded filter tags
+for k in vcffile.header.filters.keys():
+    if k not in filters:
+        vcffile.header.filters[k].remove_header()
 
 vcffile.header.filters.add("AMPSupport",None,None,'Fails requirement of having >='+str(minampnumber)+' amplicons with support for the variant')
 vcffile.header.filters.add("LowReads",None,None,'Fails requirement of having >='+str(minreads)+' supporting the variant')
@@ -168,11 +185,6 @@ vcffile.header.formats.add("SAMP", 1, 'Integer', 'Estimated number of Haloplex a
 vcffile.header.formats.add("AMPS", 1, 'String', 'Amplicon string, in the format amplicon id 1,num. reference alleles in amplicon 1, num. alternate alleles in amplicon 1;amplicon id 2,num ref, num alt;...')
 vcffile.header.formats.add("VAF", 1, 'Float', 'Variant allele fraction')
 vcffile.header.add_line("##ampliconparseroptions={'minamplicons':"+str(minampnumber)+"'window':"+str(window)+",'minreads':"+str(minreads)+"}")
-
-# remove unneeded formats
-for k in vcffile.header.formats.keys():
-    if k not in formats:
-        vcffile.header.formats[k].remove_header()
 
 hdr = str(vcffile.header).rstrip().split("\n")
 hd = hdr.pop()
@@ -206,13 +218,10 @@ for vline in vcffile.fetch(reopen=True):
         if len(rec.ref) == len(rec.alts[0]):
 
             # for substitutions, use the pileup
-            for pileup in samfile.pileup(rec.contig, rec.pos-1, rec.pos, max_depth=10000000, multiple_iterators=True):
+            for pileup in samfile.pileup(rec.contig, rec.pos-1, rec.pos, max_depth=10000000, multiple_iterators=True,min_base_quality=1):
 
                 # only consider the variant position
                 if pileup.pos == rec.pos-1:
-
-                    # do this so we can construct our own filters!
-                    pileup.set_min_base_quality(0)
 
                     for read in pileup.pileups:
 
@@ -495,6 +504,11 @@ for vline in vcffile.fetch(reopen=True):
         nrec.id = rec.id
         nrec.qual = rec.qual
 
+        # add only specified info tags
+        for k in rec.info.keys():
+            if k in infotags:
+                nrec.info[k] = rec.info.get(k)
+
         nrec.samples[mysample]['GT'] = mygt
         nrec.samples[mysample]['DP'] = ro+ao
         nrec.samples[mysample]['AD'] = (ro,ao)
@@ -508,8 +522,7 @@ for vline in vcffile.fetch(reopen=True):
         nrec.samples[mysample]['VAF'] = rawvaf
 
         # this is a workaround because I cant remove format fields or copy the old record for some reason
-        line = str(rec).rstrip().split("\t")[0:8]
-        line.extend(str(nrec).rstrip().split("\t")[8:10])
+        line = str(nrec).rstrip().split("\t")[0:10]
         print("\t".join(line))
             
 # end vcf fetch
