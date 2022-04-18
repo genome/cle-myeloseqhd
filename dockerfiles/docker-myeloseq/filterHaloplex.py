@@ -230,6 +230,8 @@ for vline in vcffile.fetch(reopen=True):
                         if rdsize < readfamilysize:
                             continue
 
+                        # check if this read has been counted already.
+                        # and only count the read with
                         numreads.append(rdsize)
 
                         readids.append(read.alignment.query_name)
@@ -449,32 +451,32 @@ for vline in vcffile.fetch(reopen=True):
             sb = min(99,int(-10 * math.log(fisher_exact(sb2x2)[1] or 1.258925e-10,10)))
 
         # do filtering
-        rec.filter.clear()
-
+        #rec.filter.clear()
+        nrec = vcffile.new_record()
         if len(supportingamplicons) < minampnumber:
-            rec.filter.add("AMPSupport")
+            nrec.filter.add("AMPSupport")
 
         # min vaf filter
         if rawvaf < minvaf:
-            rec.filter.add("LowVAF")
+            nrec.filter.add("LowVAF")
 
         # if there are < minstrandreads alt-supporting reads, then calculate the binomial p-value
         # for that observation given the overall VAF and the strand-specific read depth
         if (plusaltreads+plusrefreads > 0 and plusaltreads < minstrandreads and binom.cdf(minstrandreads, plusaltreads+plusrefreads,rawvaf, loc=0) < strandpvalue) or (minusaltreads+minusrefreads > 0 and minusaltreads < minstrandreads and binom.cdf(minstrandreads, minusaltreads+minusrefreads,rawvaf, loc=0) < strandpvalue):
-            rec.filter.add("StrandSupport")
+            nrec.filter.add("StrandSupport")
 
         if sb > sb_pvalue:
-            rec.filter.add("FisherStrandBias")
+            nrec.filter.add("FisherStrandBias")
 
         if failedreadbias > lqrb_pvalue:
-            rec.filter.add("LowQualReadBias")
+            nrec.filter.add("LowQualReadBias")
 
         if (readqual2x2[0][1] + readqual2x2[1][1]) > 0 and (readqual2x2[0][0] + readqual2x2[1][0]) / (readqual2x2[0][1] + readqual2x2[1][1]) < minhqreads:
-            rec.filter.add("LowQualReads")
+            nrec.filter.add("LowQualReads")
 
 
-        if len(rec.filter.values())==0:
-            rec.filter.add("PASS")
+        if len(nrec.filter.values())==0:
+            nrec.filter.add("PASS")
 
         mygt = ('.','.')
         if rawvaf > .98:
@@ -486,8 +488,8 @@ for vline in vcffile.fetch(reopen=True):
 
         # for sites that require genotyping only
         if 'MyeloSeqHDForceGT' in rec.info.keys() and dp > 100:
-            rec.filter.clear()
-            rec.filter.add("PASS")
+            nrec.filter.clear()
+            nrec.filter.add("PASS")
             if rawvaf > 0.2 and rawvaf < .98:
                 mygt = (0,1)
             elif rawvaf <= .2:
@@ -496,13 +498,12 @@ for vline in vcffile.fetch(reopen=True):
                 mygt = (1,1)
 
                 
-        # make new record to harmonize format fields
-        nrec = vcffile.new_record()
+        # complete new record
         nrec.chrom = rec.chrom
         nrec.pos = rec.pos
         nrec.alleles = rec.alleles
         nrec.id = rec.id
-        nrec.qual = rec.qual
+#        nrec.qual = rec.qual
 
         # add only specified info tags
         for k in rec.info.keys():
