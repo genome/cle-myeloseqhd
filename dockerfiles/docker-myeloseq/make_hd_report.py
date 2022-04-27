@@ -383,7 +383,7 @@ for variant in vcf:
 
             popmaf = 'NA'
             if csq[vep['MAX_AF']] != '':
-                popmaf = round(float(csq[vep['MAX_AF']])*100,2)
+                popmaf = float(csq[vep['MAX_AF']])
 
 
             if csq[vep['MYELOSEQ_TCGA_AC']] or csq[vep['MYELOSEQ_MDS_AC']]:
@@ -473,7 +473,8 @@ print("*** REPORTABLE MUTATIONS (>2% VAF OR PRIOR VARIANTS >0.1% VAF) ***\n")
 
 if variants[variants['category']=='Tier1-3'].shape[0] > 0:
     print(variants[variants['category']=='Tier1-3'].iloc[:,1:].to_csv(sep='\t',header=True, index=False))
-    jsonout['VARIANTS']['TIER1-3'] = variants[variants['category']=='Tier1-3'].iloc[:,1:].to_dict('split')   
+    jsonout['VARIANTS']['TIER1-3'] = variants[variants['category']=='Tier1-3'].iloc[:,1:].to_dict('split')
+    del jsonout['VARIANTS']['TIER1-3']['index']
 else:
     print("None Detected\n")
 
@@ -482,6 +483,7 @@ print("*** PRIOR MUTATIONS NOT DETECTED IN THIS CASE ***\n")
 if variants[variants['category']=='NotDetected'].shape[0] > 0:
     print(variants[variants['category']=='NotDetected'].iloc[:,1:].to_csv(sep='\t',header=True, index=False))
     jsonout['VARIANTS']['NOTDETECTED'] = variants[variants['category']=='NotDetected'].iloc[:,1:].to_dict('split')
+    del jsonout['VARIANTS']['NOTDETECTED']['index']
 else:
     print("None Detected\n")
 
@@ -490,6 +492,7 @@ print("*** LOW-LEVEL SOMATIC MUTATIONS (REPORT ONLY PREVIOUSLY DETECTED ALLELES)
 if variants[variants['category']=='Low Level'].shape[0] > 0:
     print(variants[variants['category']=='Low Level'].iloc[:,1:].to_csv(sep='\t',header=True, index=False))
     jsonout['VARIANTS']['LOWLEVEL'] = variants[variants['category']=='Low Level'].iloc[:,1:].to_dict('split')
+    del jsonout['VARIANTS']['LOWLEVEL']['index']
 else:
     print("None Detected\n")
 
@@ -498,6 +501,7 @@ print("*** FILTERED VARIANTS (REPORT WITH CAUTION) ***\n")
 if variants[variants['category']=='Filtered'].shape[0] > 0:
     print(variants[variants['category']=='Filtered'].iloc[:,1:].to_csv(sep='\t',header=True, index=False))
     jsonout['VARIANTS']['FILTERED'] = variants[variants['category']=='Filtered'].iloc[:,1:].to_dict('split')
+    del jsonout['VARIANTS']['FILTERED']['index']
 else:
     print("None Detected\n")
 
@@ -505,7 +509,8 @@ print("*** TIER 4 POLYMORPHISMS ***\n")
 
 if variants[variants['category']=='SNP'].shape[0] > 0:
     print(variants[variants['category']=='SNP'].iloc[:,1:].to_csv(sep='\t',header=True, index=False))
-    jsonout['VARIANTS']['SNPS'] = variants[variants['category']=='SNP'].iloc[:,1:].to_dict('split') 
+    jsonout['VARIANTS']['SNPS'] = variants[variants['category']=='SNP'].iloc[:,1:].to_dict('split')
+    del jsonout['VARIANTS']['SNPS']['index']
 else:
     print("None Detected\n")
 
@@ -515,6 +520,7 @@ if variants[variants['category']=='Genotyping'].shape[0] > 0:
     df = variants[variants['category']=='Genotyping'].iloc[:,[8,15,7]]
     print(df.to_csv(sep='\t',header=True, index=False))
     jsonout['VARIANTS']['GENOTYPES'] = variants[variants['category']=='Genotyping'].iloc[:,1:].to_dict('split')
+    del jsonout['VARIANTS']['GENOTYPES']['index']
 else:
     print("None Detected\n")
 
@@ -550,6 +556,7 @@ jsonout['QC']['FAILED HOTSPOTS'] = {}
 if covqcdf[(covqcdf.Type == "hotspot") & (covqcdf.covLevel1 == 0)].shape[0] > 0:
     print(covqcdf[(covqcdf.Type == "hotspot") & (covqcdf.covLevel1 == 0)].to_csv(sep='\t',header=True, index=False))
     jsonout['QC']['FAILED HOTSPOTS'] = covqcdf[(covqcdf.Type == "hotspot") & (covqcdf.covLevel1 == 0)].to_dict('split')
+    del jsonout['QC']['FAILED HOTSPOTS']['index']
 else:
     print("NONE\n")
 
@@ -561,6 +568,8 @@ xdf = xdf.rename(columns={"covLevel1": str(covLevel1)+"x", "covLevel2": str(covL
 print(xdf.to_csv(sep='\t',header=True, index=False,float_format='%.1f'))
 
 jsonout['QC']['GENE COVERAGE QC'] = xdf.to_dict('split')
+jsonout['QC']['GENE COVERAGE QC'].pop('index', None)
+
 jsonout['QC']['FAILED GENES'] = ','.join(xdf[(xdf.QC!='')]['Gene'].tolist())
 jsonout['QC']['FAILED GENE COUNT'] = xdf[(xdf.QC!='')].shape[0]
 
@@ -571,6 +580,8 @@ xdf['QC'] = np.where((xdf['Mean'] < covLevel2) | (xdf['covLevel1']<minTargetCov)
 xdf = xdf.rename(columns={"covLevel1": str(covLevel1)+"x", "covLevel2": str(covLevel2)+"x"})
 
 jsonout['QC']['EXON COVERAGE QC'] = xdf.to_dict('split')
+jsonout['QC']['EXON COVERAGE QC'].pop('index', None)
+
 jsonout['QC']['FAILED EXONS'] = ','.join(xdf[(xdf.QC!='')]['Region'].tolist())
 jsonout['QC']['FAILED EXON COUNT'] = xdf[(xdf.QC!='')]['Region'].shape[0]
 
@@ -585,7 +596,9 @@ print(haplotectdf.iloc[:,1:].to_csv(sep='\t',header=True, index=False))
 print(haplotectlocidf.to_csv(sep='\t',header=True, index=False))
 
 jsonout['QC']['HAPLOTECT SUMMARY'] = haplotectdf.iloc[:,1:].to_dict('split')
+jsonout['QC']['HAPLOTECT SUMMARY'].pop('index', None)
 jsonout['QC']['HAPLOTECT LOCI'] = haplotectlocidf.iloc[:,1:].to_dict('split')
+jsonout['QC']['HAPLOTECT LOCI'].pop('index', None)
 
 print("*** MyeloSeqHD Assay Version " + str(qcranges["ASSAY VERSION"]) + " ***\n")
 
