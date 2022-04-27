@@ -33,7 +33,7 @@ parser.add_argument("--minreadsperfamily", type=int, default=3,
 parser.add_argument('-n',"--maxreadmismatches",type=int,default=4,
                                         help='Maximum mismatches for a read to be counted')
 
-parser.add_argument('-u',"--maxnbasesinread",type=int,default=2,
+parser.add_argument('-u',"--maxnbasesinread",type=int,default=5,
                                         help='Maximum N bases in read to be counted')
 
 parser.add_argument('-Q',"--minbasequal",type=int,default=15,
@@ -176,8 +176,8 @@ vcffile.header.filters.add("LowReads",None,None,'Fails requirement of having >='
 vcffile.header.filters.add("LowQualReadBias",None,None,'PHRED-scaled P-value > 10 of non-variant vs variant alleles in failed vs. passing reads')
 vcffile.header.filters.add("LowQualReads",None,None,'Failed requirement of having a minimum of 90% high quality reads at the variant position')
 vcffile.header.filters.add("LowVAF",None,None,'Calculated VAF <'+str(minvaf))
-vcffile.header.filters.add("StrandSupport",None,None,'Variant allele support is lacking on one strand despite adequate coverage (binomial P < '+str(strandpvalue)+' for observing at least '+str(minreads)+' given the coverage on that strand')
-vcffile.header.filters.add("FisherStrandBias",None,None,'PHRED-scaled Fisher exact p-value of ref and alt reads on each strand is >20')
+#vcffile.header.filters.add("StrandSupport",None,None,'Variant allele support is lacking on one strand despite adequate coverage (binomial P < '+str(strandpvalue)+' for observing at least '+str(minreads)+' given the coverage on that strand')
+vcffile.header.filters.add("StrandBias",None,None,'PHRED-scaled Binomial p-value of plus vs. minus strand for alt reads is >20')
 vcffile.header.formats.add("LQRB", 1, 'String', 'HQ read non-variant allele count, LQ read non-variant allele count, HQ read variant allele count, LQ read variant allele count,PHRED-scaled P-value for Low Quality read variant allele bias')
 vcffile.header.formats.add("ST", 1, 'String', 'Counts of plus and minus read counts for alt allele')
 vcffile.header.formats.add("TAMP", 1, 'Integer', 'Estimated number of Haloplex amplicons at this position')
@@ -319,6 +319,7 @@ for vline in vcffile.fetch(reopen=True):
                     # if there are no indels or softclips, then call it for the reference allele 
                     if len(read.cigartuples) == 1 and read.cigartuples[0][0] == 0 and read.cigartuples[0][1] == read.query_length and read.get_cigar_stats()[0][10] < varlen:
                         calls.append('ref')
+                        readquals.append('pass')
 
                     # otherwise, do SW to decide whether the read supports the reference allele or the alt allele
                     else:
@@ -328,7 +329,7 @@ for vline in vcffile.fetch(reopen=True):
 
                         maxscore = 0
                         thisindel = 0
-                        for (altseq, isthisindel) in altseqs:                            
+                        for (altseq, isthisindel) in altseqs:
                                 sa = pairwise2.align.localms(rdseq,altseq, 2, -1, -2, -1,score_only=1,one_alignment_only=1)
                                 if sa > maxscore:
                                     maxscore = sa
@@ -336,10 +337,17 @@ for vline in vcffile.fetch(reopen=True):
 
                         if maxscore > alnref and thisindel == 1:
                             calls.append('alt')
+                            if maxscore >= len(rdseq)*2 *.8:
+                                readquals.append('pass')
+                            else:
+                                readquals.append('fail')
 
                         else:
                             calls.append('ref')
-
+                            if alnref >= len(rdseq)*2 *.8:
+                                readquals.append('pass')
+                            else:
+                                readquals.append('fail')
 
                     if read.is_reverse:
                         strands.append('-')
@@ -356,11 +364,11 @@ for vline in vcffile.fetch(reopen=True):
                     numreads.append(int(read.get_tag("XV")))
 
                     # skip if more than maxmismatches edit distance for this read or position in indel or 
-                    if read.get_tag("sd") > maxmismatches/read.query_alignment_length or read.seq.count('N') > maxnbasesinread or read.mapping_quality < minmapqual or not read.is_proper_pair:
-                        readquals.append('fail')
-
-                    else:
-                        readquals.append('pass')
+#                    if read.get_tag("sd") > maxmismatches/read.query_alignment_length:# or read.mapping_quality < minmapqual or read.seq.count('N') > maxnbasesinread or not read.is_proper_pair:
+#                        readquals.append('fail')
+#
+#                    else:
+#                        readquals.append('pass')
 
         # now go through the evidence for the variant and print
 
@@ -448,12 +456,12 @@ for vline in vcffile.fetch(reopen=True):
         refstrandskewing = plusrefreads/(plusrefreads+minusrefreads)-.5 if (plusrefreads+minusrefreads) > 0 else 0
         altstrandskewing = plusaltreads/(plusaltreads+minusaltreads)-.5 if (plusaltreads+minusaltreads) > 0 else 0
         if 'GT' in rec.format.keys() and rec.samples[0]['GT'] != (1,1) and altstrandskewing * refstrandskewing < 0 and readdat[(readdat["calls"]=='ref')].shape[0] > 0 and readdat[(readdat["calls"]=='alt')].shape[0] > 0 and readdat[(readdat["strands"]=='+')].shape[0] > 0 and readdat[(readdat["strands"]=='-')].shape[0] > 0:
-            sb = min(99,int(-10 * math.log(fisher_exact(sb2x2)[1] or 1.258925e-10,10)))
+            sb = min(99,int(-10 * math.log(binom.cdf(plusaltreads, plusaltreads+minusaltreads,.5) or 1.258925e-10,10)))
+#            sb = min(99,int(-10 * math.log(fisher_exact(sb2x2)[1] or 1.258925e-10,10)))
 
         # do filtering
-        #rec.filter.clear()
         nrec = vcffile.new_record()
-        if len(supportingamplicons) < minampnumber:
+        if len(supportingamplicons) < minampnumber and ao > 0:
             nrec.filter.add("AMPSupport")
 
         # min vaf filter
@@ -462,11 +470,11 @@ for vline in vcffile.fetch(reopen=True):
 
         # if there are < minstrandreads alt-supporting reads, then calculate the binomial p-value
         # for that observation given the overall VAF and the strand-specific read depth
-        if (plusaltreads+plusrefreads > 0 and plusaltreads < minstrandreads and binom.cdf(minstrandreads, plusaltreads+plusrefreads,rawvaf, loc=0) < strandpvalue) or (minusaltreads+minusrefreads > 0 and minusaltreads < minstrandreads and binom.cdf(minstrandreads, minusaltreads+minusrefreads,rawvaf, loc=0) < strandpvalue):
-            nrec.filter.add("StrandSupport")
+#        if (plusaltreads+plusrefreads > 0 and plusaltreads < minstrandreads and binom.cdf(minstrandreads, plusaltreads+plusrefreads,rawvaf, loc=0) < strandpvalue) or (minusaltreads+minusrefreads > 0 and minusaltreads < minstrandreads and binom.cdf(minstrandreads, minusaltreads+minusrefreads,rawvaf, loc=0) < strandpvalue):
+#            nrec.filter.add("StrandSupport")
 
         if sb > sb_pvalue:
-            nrec.filter.add("FisherStrandBias")
+            nrec.filter.add("StrandBias")
 
         if failedreadbias > lqrb_pvalue:
             nrec.filter.add("LowQualReadBias")
