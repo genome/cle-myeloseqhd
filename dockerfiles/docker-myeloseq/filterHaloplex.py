@@ -456,7 +456,7 @@ for vline in vcffile.fetch(reopen=True):
         refstrandskewing = plusrefreads/(plusrefreads+minusrefreads)-.5 if (plusrefreads+minusrefreads) > 0 else 0
         altstrandskewing = plusaltreads/(plusaltreads+minusaltreads)-.5 if (plusaltreads+minusaltreads) > 0 else 0
         if 'GT' in rec.format.keys() and rec.samples[0]['GT'] != (1,1) and altstrandskewing * refstrandskewing < 0 and readdat[(readdat["calls"]=='ref')].shape[0] > 0 and readdat[(readdat["calls"]=='alt')].shape[0] > 0 and readdat[(readdat["strands"]=='+')].shape[0] > 0 and readdat[(readdat["strands"]=='-')].shape[0] > 0:
-            sb = min(99,int(-10 * math.log(binom.cdf(plusaltreads, plusaltreads+minusaltreads,.5) or 1.258925e-10,10)))
+            sb = min(99,int(-10 * math.log(binom.pmf(plusaltreads, plusaltreads+minusaltreads,.5) or 1.258925e-10,10)))
 #            sb = min(99,int(-10 * math.log(fisher_exact(sb2x2)[1] or 1.258925e-10,10)))
 
         # do filtering
@@ -479,7 +479,7 @@ for vline in vcffile.fetch(reopen=True):
         if failedreadbias > lqrb_pvalue:
             nrec.filter.add("LowQualReadBias")
 
-        if (readqual2x2[0][1] + readqual2x2[1][1]) > 0 and (readqual2x2[0][0] + readqual2x2[1][0]) / (readqual2x2[0][1] + readqual2x2[1][1]) < minhqreads:
+        if readdat[(readdat["readquals"]=='pass')].shape[0] / readdat.shape[0] < minhqreads:
             nrec.filter.add("LowQualReads")
 
 
