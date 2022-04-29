@@ -56,7 +56,7 @@ my %group4 = (
 );
 
 my %group5 = (
-    FAILED_HOTSPOTS => 'FAILED HOTSPOTS',
+    FAILED_HOTSPOTS => 'HOTSPOT QC',
 );
 
 my @headers = ('Case', (sort keys %group1), (sort keys %group2), (sort keys %group3), (sort keys %group4), (sort keys %group5));
@@ -129,8 +129,18 @@ for my $case_name (readdir $dir_h) {
         my $json_key = $group5{$metric5};
         my $value;
         if (%{$data->{QC}->{$json_key}}) {
-            my @spots = @{$data->{QC}->{$json_key}->{data}};
-            $value = join ',', map{$_->[0].'_'.$_->[2]}@spots;
+            my @vals;
+            for my $spot (@{$data->{QC}->{$json_key}->{data}}) {
+                if ($spot->[3] eq '(!)') {
+                    push @vals, $spot->[0].'_'.$spot->[1];
+                }
+            }
+            if (@vals) {
+                $value = join '|', @vals;
+            }
+            else {
+                $value = 'NONE';
+            }
         }
         else {
             $value = 'NONE';
