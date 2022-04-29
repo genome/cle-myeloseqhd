@@ -104,7 +104,7 @@ minTargetCov = float(qcranges['Target fraction at coverage'])
 vcffile = list(Path(caseinfo['casedir']).rglob('*.annotated.vcf.gz'))[0]
 if not vcffile.is_file():
     sys.exit("VCF file " + str(vcffile) + " not valid.")
-    
+
 haplotect = list(Path(caseinfo['casedir']).rglob('*.haplotect.txt'))[0]
 haplotectloci = list(Path(caseinfo['casedir']).rglob('*.haplotectloci.txt'))[0]
 if not haplotect.is_file() or not haplotectloci.is_file():
@@ -395,7 +395,7 @@ for variant in vcf:
         msdbrecords = []
         for v in variant.INFO['MyeloSeqHDDB'].split(','):
             pvnfo = dict(zip(mshddb.keys(),v.split('|')))
-            msdbrecords.append('|'.join([pvnfo['accession'],pvnfo['date'],str(round(float(pvnfo['vaf'])*100,2))+'%']))
+            msdbrecords.append('|'.join([pvnfo['accession'],pvnfo['date'],pvnfo['filter'],str(round(float(pvnfo['vaf'])*100,2))+'%']))
             
         if len(msdbrecords) > 0:
             priorvariants = ','.join(msdbrecords)
@@ -550,15 +550,14 @@ for qc in ['MAPPING/ALIGNING SUMMARY','COVERAGE SUMMARY','UMI SUMMARY','AMPLICON
 
 print()
 
-print("*** FAILED HOTSPOTS ***\n")
+print("*** HOTSPOT QC ***\n")
 
-jsonout['QC']['FAILED HOTSPOTS'] = {}
-if covqcdf[(covqcdf.Type == "hotspot") & (covqcdf.covLevel1 == 0)].shape[0] > 0:
-    print(covqcdf[(covqcdf.Type == "hotspot") & (covqcdf.covLevel1 == 0)].to_csv(sep='\t',header=True, index=False))
-    jsonout['QC']['FAILED HOTSPOTS'] = covqcdf[(covqcdf.Type == "hotspot") & (covqcdf.covLevel1 == 0)].to_dict('split')
-    del jsonout['QC']['FAILED HOTSPOTS']['index']
-else:
-    print("NONE\n")
+xdf = covqcdf[(covqcdf.Type == "hotspot")][['Gene','Region','Mean']]
+xdf = xdf.rename(columns={"Region":"Hotspot"})
+xdf['QC'] = np.where(xdf['Mean'] < minTargetCov, '(!)', '')
+print(xdf.to_csv(sep='\t',header=True, index=False,float_format='%.1f'))
+jsonout['QC']['HOTSPOT QC'] = xdf.to_dict('split')
+jsonout['QC']['HOTSPOT QC'].pop('index', None)
 
 print("*** GENE COVERAGE QC ***\n")
 
