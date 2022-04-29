@@ -94,7 +94,7 @@ if vcf or path:   #upload db
         print("MyeloseqHD varaint DB existing")
     else:
         print("Create MyeloseqHD variant table")
-        cur.execute("create table myeloseqhd_variants (id integer primary key, mrn text, accession text, date text, version text, chromosome text, position integer, reference text, variant text, transcript_name text, consequence text, symbol text, gene_id text, exon text, intron text, p_syntax text, c_syntax text, coverage integer, vaf real, tamp integer, samp integer, amps text, UNIQUE (mrn, accession, chromosome, position, reference, variant) ON CONFLICT IGNORE)")
+        cur.execute("create table myeloseqhd_variants (id integer primary key, mrn text, accession text, date text, version text, chromosome text, position integer, reference text, variant text, filter text, transcript_name text, consequence text, symbol text, gene_id text, exon text, intron text, p_syntax text, c_syntax text, coverage integer, vaf real, tamp integer, samp integer, amps text, UNIQUE (mrn, accession, chromosome, position, reference, variant) ON CONFLICT IGNORE)")
    
     if fnmatch.fnmatch(os.path.basename(covqc_bed), '*.b37.*'):
         version = 'v1'
@@ -137,8 +137,13 @@ if vcf or path:   #upload db
         trs_list   = get_transcript_list(covqc_bed)
 
         for variant in vcf_parser:
-            if variant.FILTER:    #cyvcf variant.FILTER is None if variant FILTER column is PASS
+            #cyvcf variant.FILTER is None if variant FILTER column is PASS
+            if variant.FILTER and not variant.INFO.get('MyeloSeqHDDB'):
                 continue
+
+            filter_str = 'PASS'
+            if variant.FILTER is not None:
+                filter_str = str(variant.FILTER)
 
             chrom, pos, ref, var = str(variant.CHROM), variant.POS, str(variant.REF), str(variant.ALT[0])
             tamp, samp, amps     = int(variant.format("TAMP")[0][0]), int(variant.format("SAMP")[0][0]), variant.format("AMPS")[0]
@@ -198,7 +203,7 @@ if vcf or path:   #upload db
             else:
                 p_syntax = 'splice'
 
-            cur.execute("insert into myeloseqhd_variants (mrn, accession, date, version, chromosome, position, reference, variant, transcript_name, consequence, symbol, gene_id, exon, intron, p_syntax, c_syntax, coverage, vaf, tamp, samp, amps) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", (new_mrn, new_acn, date, version, chrom, pos, ref, var, transcript, consequence, gene_name, gene_id, exon, intron,  p_syntax, c_syntax, cov, vaf, tamp, samp, amps))
+            cur.execute("insert into myeloseqhd_variants (mrn, accession, date, version, chromosome, position, reference, variant, filter, transcript_name, consequence, symbol, gene_id, exon, intron, p_syntax, c_syntax, coverage, vaf, tamp, samp, amps) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", (new_mrn, new_acn, date, version, chrom, pos, ref, var, filter_str, transcript, consequence, gene_name, gene_id, exon, intron,  p_syntax, c_syntax, cov, vaf, tamp, samp, amps))
             con.commit()
 
 elif mrn and acn:   #query db and output a vcf file
@@ -250,8 +255,8 @@ elif mrn and acn:   #query db and output a vcf file
     vcf_writer.write_header()
 
     for r in var_rows:
-        #id, mrn, accession, date, version, chromosome, position, reference, variant, transcript_name, consequence, symbol, gene_id, exon, intron, p_syntax, c_syntax, coverage, vaf, tamp, samp, amps
-        info = "|".join([r[1], r[2], r[3], r[4], r[9], r[10], r[11], r[12], r[13], r[14], r[15], r[16], str(r[17]), str(r[18]), str(r[19]), str(r[20])])
+        #id, mrn, accession, date, version, chromosome, position, reference, variant, filter, transcript_name, consequence, symbol, gene_id, exon, intron, p_syntax, c_syntax, coverage, vaf, tamp, samp, amps
+        info = "|".join([r[1], r[2], r[3], r[4], r[9], r[10], r[11], r[12], r[13], r[14], r[15], r[16], r[17], str(r[18]), str(r[19]), str(r[20]), str(r[21])])
         new_rec = vcf_writer.variant_from_string("\t".join([r[5], str(r[6]), '.', r[7], r[8], '.', 'PASS', 'MyeloSeqHDDB='+info, 'GT', '0/1']))
         vcf_writer.write_record(new_rec)
     vcf_writer.close()
