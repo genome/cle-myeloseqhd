@@ -176,7 +176,7 @@ vcffile.header.filters.add("LowReads",None,None,'Fails requirement of having >='
 vcffile.header.filters.add("LowQualReadBias",None,None,'PHRED-scaled P-value > 10 of non-variant vs variant alleles in failed vs. passing reads')
 vcffile.header.filters.add("LowQualReads",None,None,'Failed requirement of having a minimum of 90% high quality reads at the variant position')
 vcffile.header.filters.add("LowVAF",None,None,'Calculated VAF <'+str(minvaf))
-#vcffile.header.filters.add("StrandSupport",None,None,'Variant allele support is lacking on one strand despite adequate coverage (binomial P < '+str(strandpvalue)+' for observing at least '+str(minreads)+' given the coverage on that strand')
+vcffile.header.filters.add("StrandSupport",None,None,'Variant allele support is lacking on one strand despite adequate coverage (binomial P < '+str(strandpvalue)+' for observing at least '+str(minreads)+' given the coverage on that strand')
 vcffile.header.filters.add("StrandBias",None,None,'PHRED-scaled Binomial p-value of plus vs. minus strand for alt reads is >20')
 vcffile.header.formats.add("LQRB", 1, 'String', 'HQ read non-variant allele count, LQ read non-variant allele count, HQ read variant allele count, LQ read variant allele count,PHRED-scaled P-value for Low Quality read variant allele bias')
 vcffile.header.formats.add("ST", 1, 'String', 'Counts of plus and minus read counts for alt allele')
@@ -470,8 +470,8 @@ for vline in vcffile.fetch(reopen=True):
 
         # if there are < minstrandreads alt-supporting reads, then calculate the binomial p-value
         # for that observation given the overall VAF and the strand-specific read depth
-#        if (plusaltreads+plusrefreads > 0 and plusaltreads < minstrandreads and binom.cdf(minstrandreads, plusaltreads+plusrefreads,rawvaf, loc=0) < strandpvalue) or (minusaltreads+minusrefreads > 0 and minusaltreads < minstrandreads and binom.cdf(minstrandreads, minusaltreads+minusrefreads,rawvaf, loc=0) < strandpvalue):
-#            nrec.filter.add("StrandSupport")
+        if (plusaltreads+plusrefreads > 0 and plusaltreads < minstrandreads and binom.cdf(minstrandreads, plusaltreads+plusrefreads,rawvaf, loc=0) < strandpvalue) or (minusaltreads+minusrefreads > 0 and minusaltreads < minstrandreads and binom.cdf(minstrandreads, minusaltreads+minusrefreads,rawvaf, loc=0) < strandpvalue):
+            nrec.filter.add("StrandSupport")
 
         if sb > sb_pvalue:
             nrec.filter.add("StrandBias")
