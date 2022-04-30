@@ -143,7 +143,7 @@ if vcf or path:   #upload db
 
             filter_str = 'PASS'
             if variant.FILTER is not None:
-                filter_str = str(variant.FILTER)
+                filter_str = str(variant.FILTER).replace(";", ",") #semicolon brings trouble to INFO tag
 
             chrom, pos, ref, var = str(variant.CHROM), variant.POS, str(variant.REF), str(variant.ALT[0])
             tamp, samp, amps     = int(variant.format("TAMP")[0][0]), int(variant.format("SAMP")[0][0]), variant.format("AMPS")[0]
