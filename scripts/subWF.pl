@@ -94,7 +94,7 @@ for my $case_dir (glob("$dir/TW*")) {
     my $input_json = File::Spec->join($case_dir, 'MyeloseqHDAnalysis.json');
     my $json_fh = IO::File->new(">$input_json") or die "fail to write to $input_json";
 
-    $json_fh->print(to_json($inputs, {pretty => 1}));
+    $json_fh->print(to_json($inputs, {canonical => 1, pretty => 1}));
     $json_fh->close;
 
     my $out_log = File::Spec->join($case_dir, 'out.log');
@@ -107,5 +107,6 @@ for my $case_dir (glob("$dir/TW*")) {
     print $case_name." submitted\n";
     $ct++;
     #last if $ct == 1;
+    sleep 60; #DB upload and query
 }
 print "All $ct done\n";
