@@ -479,9 +479,9 @@ for vline in vcffile.fetch(reopen=True):
         if failedreadbias > lqrb_pvalue:
             nrec.filter.add("LowQualReadBias")
 
-        if readdat[(readdat["readquals"]=='pass')].shape[0] / readdat.shape[0] < minhqreads:
-            nrec.filter.add("LowQualReads")
-
+        if readdat.shape[0] > 0:
+            if readdat[(readdat["readquals"]=='pass')].shape[0] / readdat.shape[0] < minhqreads:
+                nrec.filter.add("LowQualReads")
 
         if len(nrec.filter.values())==0:
             nrec.filter.add("PASS")
