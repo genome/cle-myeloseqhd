@@ -14,6 +14,7 @@ use warnings;
 
 umask 002;
 
+use Cwd qw(abs_path);
 use JSON qw(from_json to_json);
 use IO::File;
 use File::Spec;
@@ -23,6 +24,7 @@ die "Provide MyeloseqHD output directory" unless @ARGV == 1;
 my $dir = $ARGV[0];
 #my $dir = '/storage1/fs1/duncavagee/Active/SEQ/MyeloSeqHD/batchdir/CI-733_rerun';
 die "$dir is not a valid directory" unless -d $dir;
+$dir = abs_path($dir);
 
 my $git_dir = '/storage1/fs1/duncavagee/Active/SEQ/MyeloSeqHD/process/git/cle-myeloseqhd';
 my $conf = File::Spec->join($git_dir, 'application.conf');
