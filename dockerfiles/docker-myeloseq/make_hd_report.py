@@ -384,7 +384,7 @@ for variant in vcf:
             popmaf = 'NA'
             if csq[vep['MAX_AF']] != '':
                 popmaf = float(csq[vep['MAX_AF']])
-
+                customannotation = csq[vep['Existing_variation']]
 
             if csq[vep['MYELOSEQ_TCGA_AC']] or csq[vep['MYELOSEQ_MDS_AC']]:
                 customannotation = 'AMLTCGA=' + str(csq[vep['MYELOSEQ_TCGA_AC']] or 0) + '&' + 'MDS=' + str(csq[vep['MYELOSEQ_MDS_AC']] or 0)
