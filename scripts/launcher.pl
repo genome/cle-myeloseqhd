@@ -119,10 +119,10 @@ for my $row ($sheet->rows()) {
     unless ($row->[0] =~ /\d+/) {
         die "Lane number is expected, Check sample sheet spreadsheet";
     }
-    my ($lane, $flowcell, $lib, $index, $exception) = @$row;
+    my ($lane, $flowcell, $lib, $index_str, $exception) = @$row;
 
     $lib =~ s/\s+//g;
-    my ($mrn, $accession) = $lib =~ /^[A-Z]{4}\-(\d+)\-([A-Z]\d+\-\d+)\-[A-Z0-9]+\-lib/;
+    my ($sample, $mrn, $accession) = $lib =~ /^([A-Z]{4}\-(\d+)\-([A-Z]\d+\-\d+)\-[A-Z0-9]+)\-lib/;
 
     unless ($mrn and $accession) {
         die "Library name: $lib must contain MRN, accession id and specimen type";
@@ -137,11 +137,11 @@ for my $row ($sheet->rows()) {
         die "FAIL to find matching $mrn and $accession from CoPath dump for library: $lib";
     }
 
-    my ($index) = $index =~ /([ATGC]{8})AT\-AAAAAAAAAA/;
+    my ($index) = $index_str =~ /([ATGC]{8})AT\-AAAAAAAAAA/;
 
     if ($exception) {
         if ($exception =~ /NOTRANSFER/) {
-            push @case_excluded, $lib.'_'.$index;
+            push @cases_excluded, $lib.'_'.$index;
             $exception =~ s/,?NOTRANSFER//;
             $exception = 'NONE' if $exception =~ /^\s*$/;
         }
@@ -157,7 +157,7 @@ for my $row ($sheet->rows()) {
     
     $ds_str .= join ',', $lane, $lib, $lib, '', $index, '';
     $ds_str .= "\n";
-    $si_str .= join "\t", $index, $lib, $seq_id, $flowcell, $lane, $lib, $name, $mrn, $accession, $hash{$id}->{DOB}, $sex, $exception;
+    $si_str .= join "\t", $index, $lib, $seq_id, $flowcell, $lane, $lib, $sample, $mrn, $accession, $hash{$id}->{DOB}, $sex, $exception;
     $si_str .= "\n";
 
     $seq_id++;
