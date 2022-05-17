@@ -26,12 +26,15 @@ unless (-d $dir) {
 }
 
 my %group1 = (
-    TOTAL_BASES        => 'MAPPING/ALIGNING SUMMARY: Total bases',
-    TOTAL_READS        => 'MAPPING/ALIGNING SUMMARY: Total input reads',
+    TOTAL_GIGA_BASES        => 'MAPPING/ALIGNING SUMMARY: Total bases (Gbp)',
+    TOTAL_MEGA_READS        => 'MAPPING/ALIGNING SUMMARY: Total input reads (M)',
     MISMATCH_RATE_1    => 'MAPPING/ALIGNING SUMMARY: Mismatched bases R1 (%)',
     MISMATCH_RATE_2    => 'MAPPING/ALIGNING SUMMARY: Mismatched bases R2 (%)',
+    PCT_Q30_BASES_1    => 'MAPPING/ALIGNING SUMMARY: Q30 bases R1 (%)',
+    PCT_Q30_BASES_2    => 'MAPPING/ALIGNING SUMMARY: Q30 bases R2 (%)',
     PCT_MAPPED_READS   => 'MAPPING/ALIGNING SUMMARY: Mapped reads (%)',
-    MEDIAN_INSERT_SIZE => 'MAPPING/ALIGNING SUMMARY: Insert length: median',
+    MEAN_INSERT_SIZE   => 'MAPPING/ALIGNING SUMMARY: Insert length: mean',
+    PCT_TARGET_BASES_GT_1000x => 'COVERAGE SUMMARY: Target bases >1000x (%)',
     PCT_TARGET_ALIGNED_READS  => 'COVERAGE SUMMARY: Aligned reads in target region (%)',
     AVG_ALIGN_TARGET_COVERAGE => 'COVERAGE SUMMARY: Average alignment coverage over target region',
     PCT_LOW_COVERAGE_AMPLICON => 'AMPLICON SUMMARY: Amplicons with low coverage (%)',

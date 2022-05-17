@@ -8,6 +8,32 @@ from time import gmtime, strftime
 from cyvcf2 import VCF
 from pathlib import Path
 
+def pos2codon(exonstart,exonend,cpos,pos,strand):
+    if pos<=exonend and pos>=exonstart:
+        if strand == '+':
+            return(int((pos-exonstart + cpos) / 3 + .99))
+
+        elif strand=='-':
+             return(int((exonend-pos + cpos) / 3 + .99))
+
+def make_ranges(lst):
+    s = e = None
+    r = []
+    for i in sorted(lst):
+        if s is None:
+            s = e = i
+        elif i == e or i == e + 1:
+            e = i
+        else:
+            r.append((s, e))
+            s = e = i
+    if s is not None:
+        r.append((s, e))
+
+    out = ','.join(['%d' % i if i == j else '%d-%d' % (i, j) for (i, j) in r])
+    
+    return(out)
+        
 def decode_hex(string):
     hex_string = string.group(0).replace('%', '')
     return binascii.unhexlify(hex_string).decode('utf-8')
@@ -56,7 +82,7 @@ parser.add_argument('-b','--DOB',default='NONE',help='Date of birth')
 parser.add_argument('-e','--exception',default='NONE',help='Exception')
 parser.add_argument('-f','--minvaf',default=2.0,help='Minimum VAF for discovery analysis')
 parser.add_argument('-i','--runinfostr',default='NONE',help='Illumina Run Information String')
-parser.add_argument('-p','--maxaf',default=0.001,help='Maximum population allele frequency for potential somatic variants')
+parser.add_argument('-p','--maxaf',default=0.1,help='Maximum population allele frequency for potential somatic variants')
 
 args = parser.parse_args()
 
@@ -202,6 +228,16 @@ dfpct = dfpct.drop(columns='percent')
 qcdf = pd.concat([qcdf,df])
 qcdf = pd.concat([qcdf,dfpct])
 
+qcdf = qcdf.reset_index()
+
+ind = qcdf.loc[qcdf['metric']=='MAPPING/ALIGNING SUMMARY: Total bases'].index[0]
+qcdf.at[ind,'metric'] = 'MAPPING/ALIGNING SUMMARY: Total bases (Gbp)'
+qcdf.at[ind,'value'] = qcdf.at[ind,'value']/1e9
+
+ind = qcdf.loc[qcdf['metric']=='MAPPING/ALIGNING SUMMARY: Total input reads'].index[0]
+qcdf.at[ind,'metric'] = 'MAPPING/ALIGNING SUMMARY: Total input reads (M)'
+qcdf.at[ind,'value'] = qcdf.at[ind,'value']/1e6
+
 print("Collecting amplicon metrics...",file=sys.stderr)
 
 # get amplicon count info
@@ -217,8 +253,16 @@ qcdf = pd.concat([qcdf,pd.DataFrame([{'metric':'AMPLICON SUMMARY: Amplicons with
 print("Collecting coverage metrics...",file=sys.stderr)
 
 # intersect full res coverage bedfile w/ coverage QC bed file to calculate coverage
-covQcBedPr = pr.PyRanges(pd.read_csv(caseinfo['covqcbedfile'], header=None, names="Chromosome Start End Exon Strand Gene len geneId transcriptId".split(), sep="\t"))
+covQcBedPr = pr.PyRanges(pd.read_csv(caseinfo['covqcbedfile'], header=None, names="Chromosome Start End Exon Strand Gene len geneId transcriptId CdsStart CdsEnd transcriptPos Codon".split(), sep="\t"))
 fullResCovPr = pr.PyRanges(pd.read_csv(coveragemetrics, header=None, names="Chromosome Start End cov".split(), sep="\t"))
+
+totalTargetSpace = int(fullResCovPr.df[['Start','End']].diff(axis=1)[['End']].sum())
+fracCovLevel1 = int(fullResCovPr.df[(fullResCovPr.df['cov']>=covLevel1)][['Start','End']].diff(axis=1)[['End']].sum())/totalTargetSpace*100
+fracCovLevel2 = int(fullResCovPr.df[(fullResCovPr.df['cov']>=covLevel2)][['Start','End']].diff(axis=1)[['End']].sum())/totalTargetSpace*100
+
+qcdf = pd.concat([qcdf,pd.DataFrame([{'metric':'COVERAGE SUMMARY: Target bases >'+str(covLevel1)+'x (%)','value':round(fracCovLevel1,1)}])])
+qcdf = pd.concat([qcdf,pd.DataFrame([{'metric':'COVERAGE SUMMARY: Target bases >'+str(covLevel2)+'x (%)','value':round(fracCovLevel2,1)}])])
+
 df = covQcBedPr.join(fullResCovPr).df
 df['nt'] = df[['End','End_b']].min(axis=1) - df[['Start','Start_b']].max(axis=1)
 df['tcov'] = df['nt'] * df['cov']
@@ -227,7 +271,7 @@ df['tcov'] = df['nt'] * df['cov']
 hotspotdf = df[(df.Exon=='HOTSPOTQC')].copy()
 hotspotdf['Region'] = 'codon_' + hotspotdf['len']
 hotspotdf['Gene'] = hotspotdf['Strand']
-x = hotspotdf[['Gene','Region']].join(hotspotdf.groupby(['Gene','Region'])[['cov']].min(),on=['Gene','Region'])
+x = hotspotdf[['Gene','Region']].join(hotspotdf.groupby(['Gene','Region'])[['cov']].mean(),on=['Gene','Region'])
 x['Mean'] = x['cov']
 x['covLevel1'] = x['cov'] > covLevel1
 x['covLevel1'] = x['covLevel1'].replace({True:1,False:0})
@@ -276,11 +320,26 @@ geneqcdf['Region'] = 'Gene'
 geneqcdf.fillna(0, inplace=True)
 
 covqcdf = pd.concat([covqcdf,geneqcdf[['Gene','Type','Region','Mean','covLevel1','covLevel2']]])
-covqcdf["Mean"] = covqcdf["Mean"].map(lambda x: float(x))
+
+# low cov codons
+lowcovdf = df[(df['cov']<covLevel1)].sort_values(['Gene','transcriptPos']).reset_index()
+lowcovdf['Region'] = lowcovdf.apply(lambda row: [ pos2codon(int(row['CdsStart'])+1,int(row['CdsEnd']),int(row['transcriptPos']),x,row['Strand']) for x in range(max(int(row['CdsStart']),int(row['Start_b']))+1,min(int(row['CdsEnd']),int(row['End_b']))+1)],axis=1)
+lowcovdf = lowcovdf.explode('Region')[['Gene','Region','nt','tcov']]
+lowcovdf = lowcovdf[(lowcovdf.Region.notnull())]
+lowcovdf = lowcovdf.groupby(['Gene','Region']).sum().reset_index()
+lowcovdf['Mean'] = lowcovdf['tcov']/lowcovdf['nt']
+lowcovdf = pd.merge(lowcovdf.groupby(['Gene'])[['Mean']].mean().reset_index(),lowcovdf.groupby(['Gene'])['Region'].apply(list).apply(lambda x: make_ranges(x)).reset_index(),on='Gene')
+lowcovdf['covLevel1'] = 0
+lowcovdf['covLevel2'] = 0
+lowcovdf['Type'] = 'Codon'
+
+covqcdf = pd.concat([covqcdf,lowcovdf[['Gene','Type','Region','Mean','covLevel1','covLevel2']]])
+
+covqcdf["Mean"] = covqcdf["Mean"].map(lambda x: int(x))
 covqcdf["covLevel1"] = covqcdf["covLevel1"].map(lambda x: float(x))
 covqcdf["covLevel2"] = covqcdf["covLevel2"].map(lambda x: float(x))
 covqcdf.fillna(0)
-    
+
 # get haplotect output
 haplotectdf = pd.read_csv(haplotect,sep='\t')
 haplotectdf = haplotectdf.iloc[:, :-2]
@@ -383,7 +442,7 @@ for variant in vcf:
 
             popmaf = 'NA'
             if csq[vep['MAX_AF']] != '':
-                popmaf = float(csq[vep['MAX_AF']])
+                popmaf = float(csq[vep['MAX_AF']])*100
                 customannotation = csq[vep['Existing_variation']]
 
             if csq[vep['MYELOSEQ_TCGA_AC']] or csq[vep['MYELOSEQ_MDS_AC']]:
@@ -414,7 +473,7 @@ for variant in vcf:
         category = 'Silent/Not Reported'
 
     # maf filter, if there are low level variants with a MAF, put them in another category
-    elif varfilter == 'PASS' and popmaf != 'NA' and float(popmaf) > caseinfo['maxaf']:
+    elif varfilter == 'PASS' and popmaf != 'NA' and popmaf > caseinfo['maxaf'] and 'AMLTCGA' not in customannotation and 'MDS' not in customannotation:
         category = 'SNP'
         
     elif (varfilter == 'PASS' and abundance >= caseinfo['mindiscoveryvaf']) or (priorvariants != 'NA' and abundance > 0):
@@ -422,6 +481,7 @@ for variant in vcf:
 
     elif priorvariants != 'NA' and abundance == 0:
         category = 'NotDetected'
+        varfilter = 'NA'
         samp = 0
         
     # pass filters but <VAF and popmaf <0.1%
@@ -465,9 +525,46 @@ print("EXCEPTIONS:\t" + caseinfo['exception'])
 
 if (priorcases != 'NONE'):
     priorcases = priorcases + "\t(!)"
-print("PRIOR CASES:\t" + priorcases + "\n")
+print("PRIOR CASES:\t" + priorcases)
 
 jsonout['CASEINFO'] = caseinfo
+
+print("\n*** SEQUENCING QC ***\n")
+
+for qc in ['MAPPING/ALIGNING SUMMARY','COVERAGE SUMMARY','UMI SUMMARY','AMPLICON SUMMARY']:
+    jsonout['QC'][qc] = {}
+    qcgroup = {k: v for k, v in qcranges.items() if k.startswith(qc)}
+    for m in qcgroup.keys():
+        val = float(qcdf.loc[qcdf['metric']==m,'value'].iat[0])
+        ndigits = 1
+        if val<1:
+            ndigits=2
+            
+        val_ranges = qcranges[m].split(',')
+        check_str = check_qc_reference_ranges(val, val_ranges[0], val_ranges[1], '') 
+        print("\t".join((m, str(round(val,ndigits)), check_str)))
+        
+        jsonout['QC'][qc][m] = str(round(val,ndigits))
+
+print()
+
+print("*** HOTSPOT QC ***\n")
+
+xdf = covqcdf[(covqcdf.Type == "hotspot")][['Gene','Region','Mean']]
+xdf = xdf.rename(columns={"Region":"Hotspot"})
+xdf['QC'] = np.where(xdf['Mean'] < covLevel2, '(!)', '')
+print(xdf.to_csv(sep='\t',header=True, index=False,float_format='%.1f'))
+jsonout['QC']['HOTSPOT QC'] = xdf.to_dict('split')
+jsonout['QC']['HOTSPOT QC'].pop('index', None)
+
+print("*** LOW COVERAGE POSITIONS ***\n")
+
+xdf = covqcdf[(covqcdf.Type == "Codon")][['Gene','Region','Mean']]
+xdf = xdf.rename(columns={"Region":"Codons"})
+xdf['QC'] = '(!)'
+print(xdf.to_csv(sep='\t',header=True, index=False,float_format='%.1f'))
+jsonout['QC']['FAILED CODONS'] = xdf.to_dict('split')
+jsonout['QC']['FAILED CODONS'].pop('index', None)
 
 print("*** REPORTABLE MUTATIONS (>2% VAF OR PRIOR VARIANTS >0.1% VAF) ***\n")
 
@@ -533,31 +630,9 @@ for l in ['Tier1-3','Low Level','Filtered','SNP','Genotyping','Silent/Not Report
     else:
         print(l + ":\t" + str(varcats[l]))
 
-jsonout['QC']['VARIANTCOUNTS'] = varcats
-
-print("\n*** SEQUENCING QC ***\n")
-
-for qc in ['MAPPING/ALIGNING SUMMARY','COVERAGE SUMMARY','UMI SUMMARY','AMPLICON SUMMARY']:
-    jsonout['QC'][qc] = {}
-    qcgroup = {k: v for k, v in qcranges.items() if k.startswith(qc)}
-    for m in qcgroup.keys():
-        val = qcdf.loc[qcdf['metric']==m,'value'].iat[0]
-        val_ranges = qcranges[m].split(',')
-        check_str = check_qc_reference_ranges(float(val), val_ranges[0], val_ranges[1], '') 
-        print("\t".join((m, str(val), check_str)))
-        
-        jsonout['QC'][qc][m] = str(val)
-
 print()
 
-print("*** HOTSPOT QC ***\n")
-
-xdf = covqcdf[(covqcdf.Type == "hotspot")][['Gene','Region','Mean']]
-xdf = xdf.rename(columns={"Region":"Hotspot"})
-xdf['QC'] = np.where(xdf['Mean'] < minTargetCov, '(!)', '')
-print(xdf.to_csv(sep='\t',header=True, index=False,float_format='%.1f'))
-jsonout['QC']['HOTSPOT QC'] = xdf.to_dict('split')
-jsonout['QC']['HOTSPOT QC'].pop('index', None)
+jsonout['QC']['VARIANTCOUNTS'] = varcats
 
 print("*** GENE COVERAGE QC ***\n")
 
@@ -575,7 +650,7 @@ jsonout['QC']['FAILED GENE COUNT'] = xdf[(xdf.QC!='')].shape[0]
 print("*** FAILED EXONS ***\n")
 
 xdf = covqcdf[(covqcdf.Type == "Exon")][['Region','Mean','covLevel1','covLevel2']]
-xdf['QC'] = np.where((xdf['Mean'] < covLevel2) | (xdf['covLevel1']<minTargetCov), '(!)', '')
+xdf['QC'] = np.where(xdf['covLevel1']<minTargetCov, '(!)', '')
 xdf = xdf.rename(columns={"covLevel1": str(covLevel1)+"x", "covLevel2": str(covLevel2)+"x"})
 
 jsonout['QC']['EXON COVERAGE QC'] = xdf.to_dict('split')

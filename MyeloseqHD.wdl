@@ -15,6 +15,9 @@ workflow MyeloseqHD {
     String OutputDir
     String RunInfoString
 
+    Boolean DataTransfer
+    String? CasesExcluded
+
     String Queue
     String DragenQueue = "duncavagee"
 
@@ -40,7 +43,8 @@ workflow MyeloseqHD {
     Float MinVaf
 
     String QC_pl = "/usr/local/bin/QC_metrics.pl"
-    String DemuxFastqDir = "/storage1/fs1/gtac-mgi/Active/CLE/assay/myeloseq/demux_fastq"
+    String xfer_pl = "/storage1/fs1/duncavagee/Active/SEQ/MyeloSeqHD/process/git/cle-myeloseqhd/scripts/data_transfer.pl"
+    String DemuxFastqDir = "/storage1/fs1/gtac-mgi/Active/CLE/assay/myeloseqhd/demux_fastq"
     String VariantDB  = "/storage1/fs1/gtac-mgi/Active/CLE/validation/cle_validation/CLE_variant_database/myeloseqhd/validation.sqlite"
 
     Int readfamilysize = 3
@@ -154,6 +158,17 @@ workflow MyeloseqHD {
                QC_pl=QC_pl,
                queue=Queue,
                jobGroup=JobGroup
+    }
+
+    if (DataTransfer) {
+        call data_transfer {
+            input: order_by=batch_qc.done,
+            BatchDir=OutputDir,
+            xfer_pl=xfer_pl,
+            excluded=CasesExcluded,
+            queue=Queue,
+            jobGroup=JobGroup
+        }
     }
 }
 
@@ -385,6 +400,32 @@ task remove_rundir {
      }
      runtime {
          docker_image: "ubuntu:xenial"
+         queue: queue
+         job_group: jobGroup
+     }
+     output {
+         String done = stdout()
+     }
+}
+
+task data_transfer {
+     Array[String] order_by
+     String BatchDir
+     String xfer_pl
+     String queue
+     String jobGroup
+     String? excluded
+
+     command {
+         if [ -n "${excluded}" ]; then
+             /usr/bin/perl ${xfer_pl} ${BatchDir} ${excluded}
+         else
+             /usr/bin/perl ${xfer_pl} ${BatchDir}
+         fi
+     }
+     runtime {
+         docker_image: "registry.gsc.wustl.edu/dataxfer/data-transfer-helper"
+         memory: "8 G"
          queue: queue
          job_group: jobGroup
      }
