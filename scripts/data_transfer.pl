@@ -24,9 +24,10 @@ unless (@ARGV >= 1) {
 my $batch_dir  = $ARGV[0];
 my $batch_name = basename $batch_dir;
 
-my $cases_excluded_str;
-$cases_excluded_str = $ARGV[1] if @ARGV == 2;
-my @excluded_cases = split /,/, $cases_excluded_str;
+my @excluded_cases;
+if (@ARGV == 2) {
+    @excluded_cases = split /,/, $ARGV[1];
+}
 
 unless (-d $batch_dir) {
     die "The provided batch dir $batch_dir is not valid";
