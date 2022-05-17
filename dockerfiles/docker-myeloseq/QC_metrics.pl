@@ -26,8 +26,8 @@ unless (-d $dir) {
 }
 
 my %group1 = (
-    TOTAL_GIGA_BASES        => 'MAPPING/ALIGNING SUMMARY: Total bases (Gbp)',
-    TOTAL_MEGA_READS        => 'MAPPING/ALIGNING SUMMARY: Total input reads (M)',
+    TOTAL_GIGA_BASES   => 'MAPPING/ALIGNING SUMMARY: Total bases (Gbp)',
+    TOTAL_MEGA_READS   => 'MAPPING/ALIGNING SUMMARY: Total input reads (M)',
     MISMATCH_RATE_1    => 'MAPPING/ALIGNING SUMMARY: Mismatched bases R1 (%)',
     MISMATCH_RATE_2    => 'MAPPING/ALIGNING SUMMARY: Mismatched bases R2 (%)',
     PCT_Q30_BASES_1    => 'MAPPING/ALIGNING SUMMARY: Q30 bases R1 (%)',
