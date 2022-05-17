@@ -1,11 +1,13 @@
 {	
-    "MyeloseqHD.JobGroup":"/cle/wdl/haloplex",
-    "MyeloseqHD.DemuxSampleSheet":"PATH",
-    "MyeloseqHD.SampleSheet":"PATH",
     "MyeloseqHD.OutputDir":"PATH",
     "MyeloseqHD.IlluminaDir":"PATH",
-    "MyeloseqHD.RunInfoString":"PATH",
+    "MyeloseqHD.DemuxSampleSheet":"PATH",
+    "MyeloseqHD.SampleSheet":"PATH",
+    "MyeloseqHD.RunInfoString":"INFO",
+    "MyeloseqHD.CasesExcluded":"INFO",
+    "MyeloseqHD.DataTransfer":"true",
     "MyeloseqHD.MinReads":5,
     "MyeloseqHD.MinVaf":0.02,
-    "MyeloseqHD.Queue":"gtac-mgi"
+    "MyeloseqHD.Queue":"gtac-mgi",
+    "MyeloseqHD.JobGroup":"/cle/wdl/haloplex"
 }

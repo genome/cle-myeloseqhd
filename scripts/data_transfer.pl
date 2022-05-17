@@ -17,35 +17,36 @@ use File::Copy qw(copy);
 
 umask 002;
 
-unless (@ARGV >= 2) {
-    die "MyeloseqHD output directory and batch_number are required. Sample case dirs that are excluded for transfer are optional"; 
+unless (@ARGV >= 1) {
+    die "MyeloseqHD output directory is required. The string of Sample case dirs that are excluded for transfer are optional"; 
 }
 
-my $batch_dir  = shift @ARGV;
-my $batch_name = shift @ARGV;
-my @exclude_cases = @ARGV;
+my $batch_dir  = $ARGV[0];
+my $batch_name = basename $batch_dir;
+
+my $cases_excluded_str;
+$cases_excluded_str = $ARGV[1] if @ARGV == 2;
+my @excluded_cases = split /,/, $cases_excluded_str;
 
 unless (-d $batch_dir) {
     die "The provided batch dir $batch_dir is not valid";
 }
 
-my $dir     = '/storage1/fs1/duncavagee/Active/SEQ/MyeloSeqHD/xfer';
-my $log_dir = $dir.'/log';
-my $tmp_dir = $dir.'/staging/'.$batch_name;
-
-if (-d $tmp_dir) {
-    die "Batch tmp dir: $tmp_dir already existing. Remove or rename it before retry";
+# Run this on scratch1 local
+my $staging_dir = "./$batch_name";
+if (-d $staging_dir) {
+    die "Data transfer staging dir: $staging_dir already existing";
 }
 else {
-    mkdir $tmp_dir;
-    unless (-d $tmp_dir) {
-        die "Failed to mkdir $tmp_dir";
+    mkdir $staging_dir;
+    unless (-d $staging_dir) {
+        die "Fail to create $staging_dir";
     }
 }
 
 my $QC = File::Spec->join($batch_dir, 'QC_metrics.tsv');
 if (-s $QC) {
-    copy $QC, $tmp_dir;
+    copy $QC, $staging_dir;
 }
 else {
     warn "$QC does not exist or is empty\n";
@@ -69,12 +70,11 @@ my @files_xfer = qw(
 opendir(my $dir_h, $batch_dir);
 for my $case (readdir $dir_h) {
     next if $case =~ /^(\.|cromwell|dragen|demux|old|test)/;
-    next if grep {$_ eq $case} @exclude_cases;
+    next if grep {$_ eq $case} @excluded_cases;
     next unless -d File::Spec->join($batch_dir, $case);
 
     my ($real_name) = $case =~ /^(\S+lib\d+)_[ATCG]{8}/;
-    #my $xfer_file_str = join ' ', map{File::Spec->join($batch_dir, $case, $real_name.'.'.$_)}@files_xfer;
-    my $local_tmp_dir = File::Spec->join($tmp_dir, $case);
+    my $local_tmp_dir = File::Spec->join($staging_dir, $case);
     mkdir $local_tmp_dir;
 
     for my $file_name (@files_xfer) {
@@ -85,8 +85,6 @@ for my $case (readdir $dir_h) {
 closedir $dir_h;
 
 my $dest_dir = $batch_name.'/';
-my $err_log  = File::Spec->join($log_dir, $batch_name.'_xfer.err');
-my $out_log  = File::Spec->join($log_dir, $batch_name.'_xfer.out');
 
 my $username = $ENV{LOGNAME} || $ENV{USER} || getpwuid($<);
 my $private_key = "/home/$username/.ssh/id_rsa_";
@@ -107,10 +105,6 @@ unless (-s $private_key) {
 }
 
 my $host  = $info{$username}->{user}.'@128.252.17.197';
-my $image = 'registry.gsc.wustl.edu/dataxfer/data-transfer-helper';
-my $queue = 'dspencer';
-my $group = '/cle/wdl/haloplex';
-my $user_group = 'compute-gtac-mgi';
 
-my $cmd = "bsub -g $group -G $user_group -eo $err_log -oo $out_log -q $queue -a 'docker($image)' scp -i $private_key -r $tmp_dir $host:$dest_dir";
+my $cmd = "/usr/bin/scp -i $private_key -r $staging_dir $host:$dest_dir";
 system $cmd;
