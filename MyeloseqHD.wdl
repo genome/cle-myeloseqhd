@@ -409,7 +409,7 @@ task remove_rundir {
 }
 
 task data_transfer {
-     Array[String] order_by
+     String order_by
      String BatchDir
      String xfer_pl
      String queue
