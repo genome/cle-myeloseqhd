@@ -45,7 +45,7 @@ workflow MyeloseqHD {
     String QC_pl = "/usr/local/bin/QC_metrics.pl"
     String xfer_pl = "/storage1/fs1/duncavagee/Active/SEQ/MyeloSeqHD/process/git/cle-myeloseqhd/scripts/data_transfer.pl"
     String DemuxFastqDir = "/storage1/fs1/gtac-mgi/Active/CLE/assay/myeloseqhd/demux_fastq"
-    String VariantDB  = "/storage1/fs1/gtac-mgi/Active/CLE/validation/cle_validation/CLE_variant_database/myeloseqhd/validation.sqlite"
+    String VariantDB  = "/storage1/fs1/gtac-mgi/Active/CLE/validation/cle_validation/CLE_variant_database/myeloseqhd/myeloseqhd_variants.sqlite"
 
     Int readfamilysize = 3
 
