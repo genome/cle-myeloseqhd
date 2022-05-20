@@ -15,7 +15,7 @@
     "MyeloseqHDAnalysis.MinReads":5,
     "MyeloseqHDAnalysis.MinVaf":0.02,
     "MyeloseqHDAnalysis.GenotypeVcf":"/storage1/fs1/duncavagee/Active/SEQ/MyeloSeqHD/process/git/cle-myeloseqhd/accessory_files/myeloseqhd.forcegenotype.vcf.gz",
-    "MyeloseqHDAnalysis.VariantDB":"/storage1/fs1/gtac-mgi/Active/CLE/validation/cle_validation/CLE_variant_database/myeloseqhd/validation.sqlite",
+    "MyeloseqHDAnalysis.VariantDB":"/storage1/fs1/gtac-mgi/Active/CLE/validation/cle_validation/CLE_variant_database/myeloseqhd/myeloseqhd_variants.sqlite",
     "MyeloseqHDAnalysis.refFasta":"/storage1/fs1/duncavagee/Active/SEQ/Chromoseq/process/refdata/hg38/all_sequences.fa",
     "MyeloseqHDAnalysis.ReferenceDict":"/storage1/fs1/duncavagee/Active/SEQ/Chromoseq/process/refdata/hg38/all_sequences.dict",
     "MyeloseqHDAnalysis.Vepcache":"/storage1/fs1/gtac-mgi/Active/CLE/reference/VEP_cache", 
