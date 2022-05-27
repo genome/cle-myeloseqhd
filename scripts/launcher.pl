@@ -22,8 +22,7 @@ use IO::File;
 use File::Spec;
 use File::Compare;
 
-##THIS LAUNCHER SCRIPT NEEDS TO BE RUN ON DRAGEN NODE compute1-dragen-2 TO BE ABLE TO COPY RUNDIR
-##TO LOCAL STAGING DRIVE
+##THIS LAUNCHER SCRIPT NEEDS TO BE RUN ON DRAGEN NODE compute1-dragen-2 TO BE ABLE TO GET ILLUMINA RUN INFO STRING
 die "Provide rundir, excel sample spreadsheet, and batch name in order" unless @ARGV == 3;
 
 my ($rundir, $sample_sheet, $batch_name) = @ARGV;
@@ -134,7 +133,12 @@ for my $row ($sheet->rows()) {
 
     my $id = $mrn.'_'.$accession;
     unless (exists $hash{$id}) {
-        die "FAIL to find matching $mrn and $accession from CoPath dump for library: $lib";
+        if ($exception and $exception =~ /NOTRANSFER/) {
+            print "$id is NOTRANSFER and no-matching of CoPath dump is ok\n";
+        }
+        else {
+            die "FAIL to find matching $mrn and $accession from CoPath dump for library: $lib";
+        }
     }
 
     my ($index) = $index_str =~ /([ATGC]{8})AT\-AAAAAAAAAA/;
@@ -150,14 +154,21 @@ for my $row ($sheet->rows()) {
         $exception = 'NONE';
     }
 
-    my $sex = $hash{$id}->{sex};
-    unless ($sex eq 'male' or $sex eq 'female') {
-        die "Unknown gender: $sex for library: $lib";
+    my ($sex, $DOB);
+    if ($hash{$id}) {
+        $sex = $hash{$id}->{sex};
+        $DOB = $hash{$id}->{DOB};
+        unless ($sex eq 'male' or $sex eq 'female') {
+            die "Unknown gender: $sex for library: $lib";
+        }
+    }
+    else { #NOTRANSFER
+        ($mrn, $accession, $sex, $DOB) = ('NONE') x 4;
     }
     
     $ds_str .= join ',', $lane, $lib, $lib, '', $index, '';
     $ds_str .= "\n";
-    $si_str .= join "\t", $index, $lib, $seq_id, $flowcell, $lane, $lib, $sample, $mrn, $accession, $hash{$id}->{DOB}, $sex, $exception;
+    $si_str .= join "\t", $index, $lib, $seq_id, $flowcell, $lane, $lib, $sample, $mrn, $accession, $DOB, $sex, $exception;
     $si_str .= "\n";
 
     $seq_id++;
@@ -244,7 +255,7 @@ $json_fh->close;
 my $out_log = File::Spec->join($out_dir, 'out.log');
 my $err_log = File::Spec->join($out_dir, 'err.log');
 
-my $cmd = "bsub -g $group -G $user_group -oo $out_log -eo $err_log -q $queue -a \"docker($docker)\" /usr/bin/java -Dconfig.file=$conf -jar /opt/cromwell.jar run -t wdl --imports $zip -i $input_json $wdl";
+my $cmd = "bsub -g $group -G $user_group -oo $out_log -eo $err_log -q $queue -R \"select[mem>16000] rusage[mem=16000]\" -M 16000000 -a \"docker($docker)\" /usr/bin/java -Dconfig.file=$conf -jar /opt/cromwell.jar run -t wdl --imports $zip -i $input_json $wdl";
 
 system $cmd;
 #print $cmd."\n";
