@@ -13,6 +13,7 @@ import warnings
 
 from datetime import datetime
 from cyvcf2 import VCF, Writer
+from collections import defaultdict
 
 def parse_csq_header(vcf_file):
     for header in vcf_file.header_iter():
@@ -254,10 +255,19 @@ elif mrn and acn:   #query db and output a vcf file
     vcf_writer.add_format_to_header({'ID': 'GT','Description':'Genotype','Type': 'String', 'Number': '1'})
     vcf_writer.write_header()
 
-    for r in var_rows:
-        #id, mrn, accession, date, version, chromosome, position, reference, variant, filter, transcript_name, consequence, symbol, gene_id, exon, intron, p_syntax, c_syntax, coverage, vaf, tamp, samp, amps
-        info = "|".join([r[1], r[2], r[3], r[4], r[9], r[10], r[11], r[12], r[13], r[14], r[15], r[16], r[17], str(r[18]), str(r[19]), str(r[20]), str(r[21])])
-        new_rec = vcf_writer.variant_from_string("\t".join([r[5], str(r[6]), '.', r[7], r[8], '.', 'PASS', 'MyeloSeqHDDB='+info, 'GT', '0/1']))
+    var_dict = defaultdict(list)
+    for vr in var_rows:
+        lookup_key = "_".join([vr[5], str(vr[6]), vr[7], vr[8]])
+        var_dict[lookup_key].append(vr)
+
+    for var_id, var_list in var_dict.items():
+        v_id = var_id.split('_')
+        info_strs = []
+        for r in var_list:
+            #id, mrn, accession, date, version, chromosome, position, reference, variant, filter, transcript_name, consequence, symbol, gene_id, exon, intron, p_syntax, c_syntax, coverage, vaf, tamp, samp, amps
+            info_strs.append("|".join([r[1], r[2], r[3], r[4], r[9], r[10], r[11], r[12], r[13], r[14], r[15], r[16], r[17], str(r[18]), str(r[19]), str(r[20]), str(r[21])]))
+        info = ",".join(info_strs)
+        new_rec = vcf_writer.variant_from_string("\t".join([v_id[0], str(v_id[1]), '.', v_id[2], v_id[3], '.', 'PASS', 'MyeloSeqHDDB='+info, 'GT', '0/1']))
         vcf_writer.write_record(new_rec)
     vcf_writer.close()
 
