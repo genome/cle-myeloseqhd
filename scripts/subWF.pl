@@ -42,7 +42,7 @@ die "$main_json is not valid" unless -s $main_json;
 
 my $key = "RunInfoString"; 
 my $result = `grep $key $main_json`;
-my ($run_info_str) = $result =~ /\:"(\S+)",/;
+my ($run_info_str) = $result =~ /\:\s*"(\S+)",/;
 #my $run_info_str = '220325_A00118_0477_BH7WJLDSX3,A00118,B,S4,NovaSeqXp,151,10,10,151'; 
 
 my $sample_sheet = File::Spec->join($dir, 'sample_index');
