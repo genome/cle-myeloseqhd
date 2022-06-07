@@ -131,10 +131,14 @@ for my $row ($sheet->rows()) {
         die "$lib has invalid MRN: $1  MRN must be either a 10-digit number starting with 99 or a 9-digit number starting with 1i or 2";
     }
 
+    if ($exception =~ /NOTRANSFER/ and $exception =~ /RESEQ/) {
+        die "$lib has both NOTRANSFER and RESEQ as exception and only one is allowed.";
+    }
+
     my $id = $mrn.'_'.$accession;
     unless (exists $hash{$id}) {
-        if ($exception and $exception =~ /NOTRANSFER/) {
-            print "$id is NOTRANSFER and no-matching of CoPath dump is ok\n";
+        if ($exception and $exception =~ /NOTRANSFER|RESEQ/) {
+            print "$id is NOTRANSFER or RESEQ and no-matching of CoPath dump is ok\n";
         }
         else {
             die "FAIL to find matching $mrn and $accession from CoPath dump for library: $lib";
@@ -144,11 +148,11 @@ for my $row ($sheet->rows()) {
     my ($index) = $index_str =~ /([ATGC]{8})AT\-AAAAAAAAAA/;
 
     if ($exception) {
-        if ($exception =~ /NOTRANSFER/) {
-            push @cases_excluded, $lib.'_'.$index;
-            $exception =~ s/,?NOTRANSFER//;
+        if ($exception =~ /NOTRANSFER|RESEQ/) {
+            $exception =~ s/,?(NOTRANSFER|RESEQ),?//;
             $exception = 'NONE' if $exception =~ /^\s*$/;
         }
+        push @cases_excluded, $lib.'_'.$index if $exception =~ /NOTRANSFER/;
     }
     else {
         $exception = 'NONE';
@@ -162,7 +166,7 @@ for my $row ($sheet->rows()) {
             die "Unknown gender: $sex for library: $lib";
         }
     }
-    else { #NOTRANSFER
+    else { #NOTRANSFER  RESEQ
         ($mrn, $accession, $sex, $DOB) = ('NONE') x 4;
     }
     

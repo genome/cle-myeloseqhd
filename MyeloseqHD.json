@@ -8,6 +8,6 @@
     "MyeloseqHD.DataTransfer":"true",
     "MyeloseqHD.MinReads":5,
     "MyeloseqHD.MinVaf":0.02,
-    "MyeloseqHD.Queue":"gtac-mgi",
+    "MyeloseqHD.Queue":"pathology",
     "MyeloseqHD.JobGroup":"/cle/wdl/haloplex"
 }
