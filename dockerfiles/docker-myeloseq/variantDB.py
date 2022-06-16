@@ -42,7 +42,7 @@ parser.add_argument('-c',"--covqcbed",type=str,help='CoverageQC bed file for tru
 parser.add_argument('-d',"--db",type=str,help='Path to MyeloseqHD varaint sqlite3 DB file')
 parser.add_argument('-i',"--mrn_input",type=str,help='Input MRN number for DB upload')
 parser.add_argument('-j',"--accession_input",type=str,help='Input accession id for DB upload')
-parser.add_argument('-m',"--mrn_query",type=str,help='Query DB with sample MRN number')
+parser.add_argument('-m',"--mrn_query",type=str,help='Query DB with sample MRN number, comma separated if multiple')
 parser.add_argument('-p',"--path",type=str,help='Path to vcf files')
 parser.add_argument('-v',"--vcf",type=str,help='Path to vcf file with variants')
 
@@ -208,22 +208,27 @@ if vcf or path:   #upload db
             con.commit()
 
 elif mrn and acn:   #query db and output a vcf file
-    uniq_acn = cur.execute("select distinct accession from myeloseqhd_variants where mrn = ? and accession != ?", (mrn, acn)).fetchall()
-    acn_list = []
-    for row_acn in uniq_acn:
-        acn_list.append(row_acn[0])
+    all_uniq_acn, all_var_rows = [], []
+    for mrn_str in mrn.split(','):
+        uniq_acn = cur.execute("select distinct accession from myeloseqhd_variants where mrn = ? and accession != ?", (mrn_str, acn)).fetchall()
+        acn_list = []
+        for row_acn in uniq_acn:
+            acn_list.append(row_acn[0])
+        var_rows = cur.execute("select * from myeloseqhd_variants where mrn = ? and accession != ?", (mrn_str, acn)).fetchall()
+        all_uniq_acn.extend(acn_list)
+        all_var_rows.extend(var_rows)
 
-    var_rows = cur.execute("select * from myeloseqhd_variants where mrn = ? and accession != ?", (mrn, acn)).fetchall()
     desc_list = [i[0] for i in cur.description]
     desc_list = [e for e in desc_list if e not in ('id', 'chromosome', 'position', 'reference', 'variant', 'amps')]
 
     db_version = 'v1'
-    outvcf_file = mrn + '_' + acn + '_query.vcf'
+    outvcf_file = acn + '_query.vcf'
     vcf_writer = Writer.from_string(outvcf_file, "##fileformat=VCFv4.2\n#" + "\t".join(['CHROM','POS','ID','REF','ALT','QUAL','FILTER','INFO','FORMAT','MYELOSEQHDDB']),mode="w")
     vcf_writer.add_to_header('##MyeloSeqHDDB_VERSION=' + db_version)
     
-    if acn_list:
-        vcf_writer.add_to_header('##MyeloSeqHDDB_ACCESSIONLIST=' + ",".join(acn_list))
+    if all_uniq_acn:
+        all_uniq_acn=list(set(all_uniq_acn))
+        vcf_writer.add_to_header('##MyeloSeqHDDB_ACCESSIONLIST=' + ",".join(all_uniq_acn))
     
     vcf_writer.add_to_header('##MyeloSeqHDDB_FIELDS=' + "|".join(desc_list))
     vcf_writer.add_to_header('##contig=<ID=chr1,length=248956422>')
@@ -256,7 +261,7 @@ elif mrn and acn:   #query db and output a vcf file
     vcf_writer.write_header()
 
     var_dict = defaultdict(list)
-    for vr in var_rows:
+    for vr in all_var_rows:
         lookup_key = "_".join([vr[5], str(vr[6]), vr[7], vr[8]])
         var_dict[lookup_key].append(vr)
 

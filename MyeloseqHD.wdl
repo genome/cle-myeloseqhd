@@ -4,7 +4,7 @@ workflow MyeloseqHD {
 
     File SampleSheet
     # sample sheet has this structure:
-    # index  name  RG_ID  RG_FLOWCELL  RG_LANE  RG_LIB  RG_SAMPLE MRN ACCESSION DOB SEX EXCEPTION [R1] [R2]
+    # index  name  RG_ID  RG_FLOWCELL  RG_LANE  RG_LIB  RG_SAMPLE MRN ALL_MRNs ACCESSION DOB SEX EXCEPTION [R1] [R2]
     
     File? DemuxSampleSheet
 
@@ -69,13 +69,13 @@ workflow MyeloseqHD {
 
     Array[Array[String]] inputData = read_tsv(select_first([prepare_samples.sample_sheet,SampleSheet]))
 
-    # the inputdata should be: index  name  RG_ID  RG_FLOWCELL  RG_LANE  RG_LIB  RG_SAMPLE MRN ACCESSION DOB SEX EXCEPTION read1path read2path
+    # the inputdata should be: index  name  RG_ID  RG_FLOWCELL  RG_LANE  RG_LIB  RG_SAMPLE MRN ALL_MRNs ACCESSION DOB SEX EXCEPTION read1path read2path
     scatter (samples in inputData){
 
         if(!defined(DemuxSampleSheet)){
           call trim_reads {
-              input: Read1=samples[12],
-              Read2=samples[13],
+              input: Read1=samples[13],
+              Read2=samples[14],
               Adapters=Adapters,
               Name=samples[1],
               queue=Queue,
@@ -86,8 +86,8 @@ workflow MyeloseqHD {
         call dragen_align {
             input: DragenRef=DragenReference,
                    DragenHotspot=DragenHotspot,
-                   fastq1=select_first([trim_reads.read1,samples[12]]),
-                   fastq2=select_first([trim_reads.read2,samples[13]]),
+                   fastq1=select_first([trim_reads.read1,samples[13]]),
+                   fastq2=select_first([trim_reads.read2,samples[14]]),
                    Name=samples[1],
                    RG=samples[3] + '.' + samples[4] + '.' + samples[0],
                    SM=samples[6],
@@ -112,10 +112,11 @@ workflow MyeloseqHD {
                    ReferenceDict=ReferenceDict,
                    Name=samples[1],
                    mrn=samples[7],
-                   accession=samples[8],
-                   DOB=samples[9],
-                   sex=samples[10],
-                   exception=samples[11],
+                   all_mrn=samples[8],
+                   accession=samples[9],
+                   DOB=samples[10],
+                   sex=samples[11],
+                   exception=samples[12],
                    RunInfoString=RunInfoString,
                    VariantDB=VariantDB,
                    Vepcache=VEP,
@@ -123,9 +124,9 @@ workflow MyeloseqHD {
                    CustomAnnotationVcf=CustomAnnotationVcf,
                    CustomAnnotationIndex=CustomAnnotationIndex,
                    CustomAnnotationParameters=CustomAnnotationParameters,
-		   GenotypeVcf=GenotypeVcf,
-		   MinReads=MinReads,
-		   MinVaf=MinVaf,
+                   GenotypeVcf=GenotypeVcf,
+                   MinReads=MinReads,
+                   MinVaf=MinVaf,
                    HaplotectBed=HaplotectBed,
                    QcMetrics=QcMetrics,
                    OutputDir=OutputDir,

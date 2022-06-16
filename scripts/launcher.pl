@@ -79,10 +79,12 @@ my $dump_fh = IO::File->new($copath_dump) or die "fail to open $copath_dump for 
 my %hash;
 
 while (my $l = $dump_fh->getline) {
-    next if $l =~ /^Accession/;
+    next if $l =~ /^(Accession|,,,,)/;
     
     my @columns = split /,/, $l;
     my $id  = $columns[2].'_'.$columns[0];
+    my $all_MRNs = $columns[8];
+    $all_MRNs =~ s/\|/,/g;
     my $sex = $columns[4];
 
     if ($sex eq 'M') {
@@ -99,6 +101,7 @@ while (my $l = $dump_fh->getline) {
     $hash{$id} = {
         DOB => $columns[5],
         sex => $sex,
+        all_MRNs => $all_MRNs,
     };
 }
 $dump_fh->close;
@@ -120,59 +123,63 @@ for my $row ($sheet->rows()) {
     }
     my ($lane, $flowcell, $lib, $index_str, $exception) = @$row;
 
-    $lib =~ s/\s+//g;
-    my ($sample, $mrn, $accession) = $lib =~ /^([A-Z]{4}\-(\d+)\-([A-Z]\d+\-\d+)\-[A-Z0-9]+)\-lib/;
-
-    unless ($mrn and $accession) {
-        die "Library name: $lib must contain MRN, accession id and specimen type";
-    }
-
-    unless ((length($mrn) == 10 and $mrn =~ /^99/) or (length($mrn) == 9 and $mrn =~ /^(1|2)/)) {
-        die "$lib has invalid MRN: $1  MRN must be either a 10-digit number starting with 99 or a 9-digit number starting with 1i or 2";
-    }
-
-    if ($exception =~ /NOTRANSFER/ and $exception =~ /RESEQ/) {
+    if ($exception and $exception =~ /NOTRANSFER/ and $exception =~ /RESEQ/) {
         die "$lib has both NOTRANSFER and RESEQ as exception and only one is allowed.";
     }
 
-    my $id = $mrn.'_'.$accession;
-    unless (exists $hash{$id}) {
-        if ($exception and $exception =~ /NOTRANSFER|RESEQ/) {
-            print "$id is NOTRANSFER or RESEQ and no-matching of CoPath dump is ok\n";
+    $lib =~ s/\s+//g;
+    my ($sample, $mrn, $accession) = $lib =~ /^([A-Z]{4}\-(\d+)\-([A-Z]\d+\-\d+)\-[A-Z0-9]+)\-lib/;
+    my $id = $lib =~ /^H_/ ? 'NONE' : $mrn.'_'.$accession;
+    ($sample) = $lib =~ /^(H_\S+)\-lib/ if $lib =~ /^H_/;
+
+    unless ($lib =~ /^H_/) {
+        unless ($mrn and $accession) {
+            die "Library name: $lib must contain MRN, accession id and specimen type";
         }
-        else {
-            die "FAIL to find matching $mrn and $accession from CoPath dump for library: $lib";
+
+        unless ((length($mrn) == 10 and $mrn =~ /^99/) or (length($mrn) == 9 and $mrn =~ /^(1|2)/)) {
+            die "$lib has invalid MRN: $1  MRN must be either a 10-digit number starting with 99 or a 9-digit number starting with 1i or 2";
+        }
+
+        unless (exists $hash{$id}) {
+            if ($exception and $exception =~ /NOTRANSFER|RESEQ/) {
+                print "$id is NOTRANSFER or RESEQ and no-matching of CoPath dump is ok\n";
+            }
+            else {
+                die "FAIL to find matching $mrn and $accession from CoPath dump for library: $lib";
+            }
         }
     }
 
     my ($index) = $index_str =~ /([ATGC]{8})AT\-AAAAAAAAAA/;
 
     if ($exception) {
+        push @cases_excluded, $lib.'_'.$index if $exception =~ /NOTRANSFER/;
         if ($exception =~ /NOTRANSFER|RESEQ/) {
             $exception =~ s/,?(NOTRANSFER|RESEQ),?//;
             $exception = 'NONE' if $exception =~ /^\s*$/;
         }
-        push @cases_excluded, $lib.'_'.$index if $exception =~ /NOTRANSFER/;
     }
     else {
         $exception = 'NONE';
     }
 
-    my ($sex, $DOB);
+    my ($sex, $DOB, $all_MRNs);
     if ($hash{$id}) {
         $sex = $hash{$id}->{sex};
         $DOB = $hash{$id}->{DOB};
+        $all_MRNs = $hash{$id}->{all_MRNs};
         unless ($sex eq 'male' or $sex eq 'female') {
             die "Unknown gender: $sex for library: $lib";
         }
     }
     else { #NOTRANSFER  RESEQ
-        ($mrn, $accession, $sex, $DOB) = ('NONE') x 4;
+        ($mrn, $accession, $sex, $DOB, $all_MRNs) = ('NONE') x 5;
     }
     
     $ds_str .= join ',', $lane, $lib, $lib, '', $index, '';
     $ds_str .= "\n";
-    $si_str .= join "\t", $index, $lib, $seq_id, $flowcell, $lane, $lib, $sample, $mrn, $accession, $DOB, $sex, $exception;
+    $si_str .= join "\t", $index, $lib, $seq_id, $flowcell, $lane, $lib, $sample, $mrn, $all_MRNs, $accession, $DOB, $sex, $exception;
     $si_str .= "\n";
 
     $seq_id++;
@@ -248,6 +255,9 @@ $inputs->{'MyeloseqHD.RunInfoString'}    = $run_info_str;
 
 if (@cases_excluded and $inputs->{'MyeloseqHD.DataTransfer'} eq 'true') {
     $inputs->{'MyeloseqHD.CasesExcluded'} = join ',', @cases_excluded;
+}
+else {
+    delete $inputs->{'MyeloseqHD.CasesExcluded'};
 }
 
 my $input_json = File::Spec->join($out_dir, 'MyeloseqHD.json');
