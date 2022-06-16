@@ -66,24 +66,6 @@ workflow MyeloseqHDAnalysis {
                jobGroup=JobGroup
     }
 
-    call run_freebayes {
-        input: Cram=convert_bam.cram,
-               CramIndex=convert_bam.crai,
-               CoverageBed=CoverageBed,
-               refFasta=refFasta,
-               Name=Name,
-               queue=Queue,
-               jobGroup=JobGroup
-    }
-
-    call clean_variants as clean_freebayes {
-        input: Vcf=run_freebayes.vcf,
-               Name=Name,
-               refFasta=refFasta,
-               queue=Queue,
-               jobGroup=JobGroup
-    }
-
     call run_pindel_region as run_pindel_flt3itd {
         input: Cram=convert_bam.cram,
                CramIndex=convert_bam.crai,
@@ -110,7 +92,7 @@ workflow MyeloseqHDAnalysis {
     }
 
     call combine_variants {
-        input: Vcfs=select_all([DragenVcf,clean_freebayes.cleaned_vcf_file,clean_pindel_itd.cleaned_vcf_file,clean_queryDB_vcf.cleaned_vcf_file,GenotypeVcf]),
+        input: Vcfs=select_all([DragenVcf,clean_pindel_itd.cleaned_vcf_file,clean_queryDB_vcf.cleaned_vcf_file,GenotypeVcf]),
                Cram=convert_bam.cram,
                CramIndex=convert_bam.crai,
                refFasta=refFasta,
@@ -231,37 +213,6 @@ task convert_bam {
      }
 }
 
-task run_freebayes {
-     File Cram
-     File CramIndex
-     String CoverageBed
-     String refFasta
-     String Name
-     Float? MinFreq
-     Int? MinReads
-     Int? MinMapQual
-     Int? MaxMismatch
-
-     String jobGroup
-     String queue
-
-     command {
-         /usr/local/bin/freebayes -C ${default=3 MinReads} -q ${default=13 MinMapQual} -F ${default="0.0008" MinFreq} -$ ${default=4 MaxMismatch} \
-         -f ${refFasta} -t ${CoverageBed} -K ${Cram} > "${Name}.freebayes.vcf"
-     }
-
-     runtime {
-         docker_image: "registry.gsc.wustl.edu/mgi-cle/myeloseqhd:v1"
-         cpu: "1"
-         memory: "16 G"
-         queue: queue
-         job_group: jobGroup
-     }
-     output {
-         File vcf = "${Name}.freebayes.vcf"
-     }
-}
-
 task run_pindel_region {
      File Cram
      File CramIndex
@@ -359,7 +310,7 @@ task combine_variants {
      command {
          /usr/local/bin/bcftools merge --force-samples -Oz ${sep=" " Vcfs} | /usr/local/bin/bcftools sort -Oz -o combined.vcf.gz && \
          /usr/bin/tabix -p vcf combined.vcf.gz && \
-         /usr/bin/python3 /usr/local/bin/filterHaloplex.py -r ${refFasta} --minreadsperfamily ${default='3' MinReadsPerFamily} -m ${default='3' Reads} -d ${default='0.02' Vaf} combined.vcf.gz ${Cram} ${Name} > ${Name}.combined_and_tagged.vcf
+         /usr/bin/python3 /usr/local/bin/filterHaloplex.py -r ${refFasta} --minreadsperfamily ${default='3' MinReadsPerFamily} -m ${default='5' Reads} -d ${default='0.02' Vaf} combined.vcf.gz ${Cram} ${Name} > ${Name}.combined_and_tagged.vcf
      }
 
      runtime {

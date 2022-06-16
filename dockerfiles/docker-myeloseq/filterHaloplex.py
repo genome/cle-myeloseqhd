@@ -42,7 +42,7 @@ parser.add_argument('-Q',"--minbasequal",type=int,default=15,
 parser.add_argument('-q',"--minmapqual",type=int,default=1,
                                         help='Minium read mapping quality to contribute to variant calling')
 
-parser.add_argument('-m',"--minreads",type=int,default=3,
+parser.add_argument('-m',"--minreads",type=int,default=5,
                     help='minimum reads supporting a variant to be reported')
 
 parser.add_argument('-v',"--minreads4vaf",type=int,default=3,
@@ -207,8 +207,8 @@ print("\n".join(hdr) + "\n" + ("\t".join((hd.split("\t"))[0:9])) + "\t" + mysamp
 
 numvars = 0
 
-for vline in vcffile.fetch(reopen=True):
-
+for vline in vcffile.fetch(reopen=True):    
+    
     numvars += 1
 
      # first determine the callers that identified the variant
@@ -222,7 +222,10 @@ for vline in vcffile.fetch(reopen=True):
     if 'HOMLEN' in vline.info.keys():
         callers.append('pindel')
 
-
+    # must be a passing variant, a genotyping variant, or in the database to proceed
+    if 'MyeloSeqHDForceGT' not in vline.info.keys() and 'MyeloSeqHDDB' not in vline.info.keys() and 'PASS' not in vline.filter.keys():
+        continue
+    
     # handle multiallelic entries in the VCF (and split them)
     for alt in vline.alts:
 
@@ -449,7 +452,7 @@ for vline in vcffile.fetch(reopen=True):
         failingreadvaf = readqual2x2[1][1]/(readqual2x2[1][1]+readqual2x2[0][1]) if (readqual2x2[1][1]+readqual2x2[0][1]) > 0 else 0
         failedreadbias = 0
         failedreadbiasstr = str(readqual2x2[0][0]) + "," + str(readqual2x2[0][1]) + ',' + str(readqual2x2[1][0]) + "," + str(readqual2x2[1][1]) + ","
-        if 'GT' in rec.format.keys() and rec.samples[0]['GT'] != (1,1) and readdat[(readdat["calls"]=='ref')].shape[0] > 0 and readdat[(readdat["calls"]=='alt')].shape[0] > 0 and readdat[(readdat["readquals"]=='pass')].shape[0] > 0 and readdat[(readdat["readquals"]=='fail')].shape[0] > 0 and failingreadvaf > passingreadvaf:
+        if 'GT' in rec.format.keys() and rec.samples[0]['GT'] != (1,1) and readdat[(readdat["calls"]=='ref')].shape[0] > 0 and readdat[(readdat["calls"]=='alt')].shape[0] > 0 and readdat[(readdat["readquals"]=='pass')].shape[0] > 0 and readdat[(readdat["readquals"]=='fail')].shape[0] > 0 and failingreadvaf > passingreadvaf and readqual2x2[1][1]/(readqual2x2[1][1]+readqual2x2[1][0]) > 0.2:
             failedreadbias = min(99,int(-10 * math.log(fisher_exact(readqual2x2)[1] or 1.258925e-10,10)))
 
         failedreadbiasstr = failedreadbiasstr + str(failedreadbias)
@@ -479,9 +482,11 @@ for vline in vcffile.fetch(reopen=True):
         if 'GT' in rec.format.keys() and rec.samples[0]['GT'] != (1,1) and rawvaf < .9 and altstrandskewing * refstrandskewing < 0 and readdat[(readdat["calls"]=='ref')].shape[0] > 0 and readdat[(readdat["calls"]=='alt')].shape[0] > 0 and readdat[(readdat["strands"]=='+')].shape[0] > 0 and readdat[(readdat["strands"]=='-')].shape[0] > 0:
             sb = min(min(99,int(-10 * math.log(binom.pmf(plusaltreads, plusaltreads+minusaltreads,plusrefreads/(plusrefreads+minusrefreads)) or 1.258925e-10,10))),min(99,int(-10 * math.log(binom.pmf(plusaltreads, plusaltreads+minusaltreads,minusrefreads/(plusrefreads+minusrefreads)) or 1.258925e-10,10))))
 
-        # do filtering
         nrec = vcffile.new_record()
-        if len(supportingamplicons) < minampnumber and ao > 0:
+        
+        # do filtering of all variants NOT called by DRAGEN--those we just accept 'PASS' as good enough
+
+        if 'dragen' not in callers and len(supportingamplicons) < minampnumber and ao > 0:
             nrec.filter.add("AMPSupport")
 
         # min vaf filter
@@ -490,16 +495,16 @@ for vline in vcffile.fetch(reopen=True):
 
         # if there are < minstrandreads alt-supporting reads, then calculate the binomial p-value
         # for that observation given the overall VAF and the strand-specific read depth
-        if ao > 0 and ((plusaltreads+plusrefreads > 0 and plusaltreads < minstrandreads and binom.cdf(minstrandreads, plusaltreads+plusrefreads,rawvaf, loc=0) < strandpvalue) or (minusaltreads+minusrefreads > 0 and minusaltreads < minstrandreads and binom.cdf(minstrandreads, minusaltreads+minusrefreads,rawvaf, loc=0) < strandpvalue)):
+        if 'dragen' not in callers and ao > 0 and ((plusaltreads+plusrefreads > 0 and plusaltreads < minstrandreads and binom.cdf(minstrandreads, plusaltreads+plusrefreads,rawvaf, loc=0) < strandpvalue) or (minusaltreads+minusrefreads > 0 and minusaltreads < minstrandreads and binom.cdf(minstrandreads, minusaltreads+minusrefreads,rawvaf, loc=0) < strandpvalue)):
             nrec.filter.add("StrandSupport")
 
-        if ao > 0 and sb > sb_pvalue:
+        if 'dragen' not in callers and ao > 0 and sb > sb_pvalue:
             nrec.filter.add("StrandBias")
 
-        if ao > 0 and failedreadbias > lqrb_pvalue:
+        if 'dragen' not in callers and ao > 0 and failedreadbias > lqrb_pvalue:
             nrec.filter.add("LowQualReadBias")
 
-        if ao > 0 and readdat.shape[0] > 0:
+        if 'dragen' not in callers and ao > 0 and readdat.shape[0] > 0:
             if readdat[(readdat["readquals"]=='pass')].shape[0] / readdat.shape[0] < minhqreads:
                 nrec.filter.add("LowQualReads")
 
