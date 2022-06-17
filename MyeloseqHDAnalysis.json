@@ -5,6 +5,7 @@
     "MyeloseqHDAnalysis.OutputDir":"PATH",
     "MyeloseqHDAnalysis.SubDir":"PATH",
     "MyeloseqHDAnalysis.mrn":"NAME",
+    "MyeloseqHDAnalysis.all_mrn":"NAME",
     "MyeloseqHDAnalysis.accession":"NAME",
     "MyeloseqHDAnalysis.DOB":"NAME",
     "MyeloseqHDAnalysis.sex":"NAME",
