@@ -80,6 +80,8 @@ my %hash;
 
 while (my $l = $dump_fh->getline) {
     next if $l =~ /^(Accession|,,,,)/;
+    chomp $l;
+    $l =~ s/\r//g;
     
     my @columns = split /,/, $l;
     my $id  = $columns[2].'_'.$columns[0];
