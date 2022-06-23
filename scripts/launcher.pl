@@ -124,6 +124,7 @@ for my $row ($sheet->rows()) {
         die "Lane number is expected, Check sample sheet spreadsheet";
     }
     my ($lane, $flowcell, $lib, $index_str, $exception) = @$row;
+    $exception =~ s/\s+/_/g if $exception;
 
     if ($exception and $exception =~ /NOTRANSFER/ and $exception =~ /RESEQ/) {
         die "$lib has both NOTRANSFER and RESEQ as exception and only one is allowed.";
@@ -131,10 +132,10 @@ for my $row ($sheet->rows()) {
 
     $lib =~ s/\s+//g;
     my ($sample, $mrn, $accession) = $lib =~ /^([A-Z]{4}\-(\d+)\-([A-Z]\d+\-\d+)\-[A-Z0-9]+)\-lib/;
-    my $id = $lib =~ /^H_/ ? 'NONE' : $mrn.'_'.$accession;
-    ($sample) = $lib =~ /^(H_\S+)\-lib/ if $lib =~ /^H_/;
+    my $id = $lib =~ /^H_|Research/ ? 'NONE' : $mrn.'_'.$accession;
+    ($sample) = $lib =~ /^(\S+)\-lib/ if $lib =~ /^H_|Research/;
 
-    unless ($lib =~ /^H_/) {
+    unless ($lib =~ /^H_|Research/) {
         unless ($mrn and $accession) {
             die "Library name: $lib must contain MRN, accession id and specimen type";
         }
