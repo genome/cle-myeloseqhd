@@ -55,10 +55,11 @@ while (my $line = $fh->getline) {
     my @columns = split /\t/, $line;
     $info{$columns[1]} = {
         mrn       => $columns[7],
-        accession => $columns[8],
-        DOB       => $columns[9],
-        sex       => $columns[10],
-        exception => $columns[11],
+        all_mrn   => $columns[8],
+        accession => $columns[9],
+        DOB       => $columns[10],
+        sex       => $columns[11],
+        exception => $columns[12],
     };
 }
 $fh->close;
@@ -87,6 +88,7 @@ for my $case_dir (glob("$dir/TW*")) {
     $inputs->{'MyeloseqHDAnalysis.SubDir'}         = basename($case_dir);
 
     $inputs->{'MyeloseqHDAnalysis.mrn'}            = $info{$case_name}->{mrn};
+    $inputs->{'MyeloseqHDAnalysis.all_mrn'}        = $info{$case_name}->{all_mrn};
     $inputs->{'MyeloseqHDAnalysis.accession'}      = $info{$case_name}->{accession};
     $inputs->{'MyeloseqHDAnalysis.DOB'}            = $info{$case_name}->{DOB};
     $inputs->{'MyeloseqHDAnalysis.sex'}            = $info{$case_name}->{sex};
