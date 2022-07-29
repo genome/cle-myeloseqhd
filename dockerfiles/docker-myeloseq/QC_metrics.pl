@@ -44,7 +44,7 @@ my %group1 = (
 
 my %group2 = (
     VARIANT_COUNTS_TIER_1_2_3 => 'VARIANTCOUNTS: Tier1-3',
-    VARIANT_COUNTS_LOW_LEVEL  => 'VARIANTCOUNTS: Low Level',
+    VARIANT_COUNTS_NOT_DETECTED  => 'VARIANTCOUNTS: NotDetected',
 );
 
 my %group3 = (
@@ -54,8 +54,7 @@ my %group3 = (
 
 my %group4 = (
     FAILED_GENES      => 'FAILED GENES',
-    FAILED_GENE_COUNT => 'FAILED GENE COUNT',
-    FAILED_EXON_COUNT => 'FAILED EXON COUNT',
+    FAILED_GENE_COUNT => 'FAILED GENE COUNT'
 );
 
 my %group5 = (
