@@ -552,7 +552,7 @@ print("*** HOTSPOT QC ***\n")
 
 xdf = covqcdf[(covqcdf.Type == "hotspot")][['Gene','Region','Mean']]
 xdf = xdf.rename(columns={"Region":"Hotspot"})
-xdf['QC'] = np.where(xdf['Mean'] < covLevel2, '(!)', '')
+xdf['QC'] = np.where(xdf['Mean'] < covLevel1, '(!)', '')
 print(xdf.to_csv(sep='\t',header=True, index=False,float_format='%.1f'))
 jsonout['QC']['HOTSPOT QC'] = xdf.to_dict('split')
 jsonout['QC']['HOTSPOT QC'].pop('index', None)
@@ -637,7 +637,7 @@ jsonout['QC']['VARIANTCOUNTS'] = varcats
 print("*** GENE COVERAGE QC ***\n")
 
 xdf = covqcdf[(covqcdf.Type == "Gene")][['Gene','Mean','covLevel1','covLevel2']]
-xdf['QC'] = np.where((xdf['Mean'] < covLevel2) | (xdf['covLevel1']<minTargetCov), '(!)', '')
+xdf['QC'] = np.where(xdf['covLevel1']<minTargetCov, '(!)', '')
 xdf = xdf.rename(columns={"covLevel1": str(covLevel1)+"x", "covLevel2": str(covLevel2)+"x"})
 print(xdf.to_csv(sep='\t',header=True, index=False,float_format='%.1f'))
 
