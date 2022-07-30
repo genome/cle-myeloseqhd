@@ -54,14 +54,8 @@ else {
 }
 
 my @files_xfer = qw(
-    ampinfo.txt 
-    ampcounts.txt 
     cram 
     cram.crai
-    haplotectloci.txt 
-    haplotect.txt 
-    cleaned.vcf.gz
-    combined_and_tagged.vcf 
     annotated.vcf.gz
     annotated_filtered.vcf.gz
     report.txt

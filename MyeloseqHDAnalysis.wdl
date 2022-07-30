@@ -25,6 +25,7 @@ workflow MyeloseqHDAnalysis {
     String QcMetrics
 
     String mrn
+    String all_mrn
     String accession
     String DOB
     String sex
@@ -39,7 +40,7 @@ workflow MyeloseqHDAnalysis {
 
 
     call query_DB {
-        input: mrn=mrn,
+        input: mrn=all_mrn,
                accession=accession,
                VariantDB=VariantDB,
                queue=Queue,
@@ -502,6 +503,6 @@ task query_DB {
          job_group: jobGroup
      }
      output {
-         File query_vcf = "${mrn}_${accession}_query.vcf"
+         File query_vcf = "${accession}_query.vcf"
      }
 }
