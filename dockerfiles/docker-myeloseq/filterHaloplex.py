@@ -439,7 +439,7 @@ for vline in vcffile.fetch(reopen=True):
             rawvaf = 0
         else:
             rawvaf = ao / dp
-
+        
         ampliconcounts = []
 
         # get per amplicon support information
@@ -507,6 +507,12 @@ for vline in vcffile.fetch(reopen=True):
         if 'dragen' not in callers and ao > 0 and readdat.shape[0] > 0:
             if readdat[(readdat["readquals"]=='pass')].shape[0] / readdat.shape[0] < minhqreads:
                 nrec.filter.add("LowQualReads")
+
+        # if the dragen called this variant, then just use its read counts
+        if 'dragen' in callers:
+            ro = rec.samples[mysample]['AD'][0]
+            ao = rec.samples[mysample]['AD'][1]
+            rawvaf = rec.samples[mysample]['AF'] 
 
         if ao > 0 and len(nrec.filter.values())==0:
             nrec.filter.add("PASS")
