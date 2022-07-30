@@ -44,12 +44,12 @@ my %group1 = (
 
 my %group2 = (
     VARIANT_COUNTS_TIER_1_2_3 => 'VARIANTCOUNTS: Tier1-3',
-    VARIANT_COUNTS_NOT_DETECTED  => 'VARIANTCOUNTS: NotDetected',
+    VARIANT_COUNTS_NOT_DETECTED  => 'VARIANTCOUNTS: NotDetected'
 );
 
 my %group3 = (
     HAPLOTECT_SITES  => 'HAPLOTECT SUMMARY: informativeSites',
-    HAPLOTECT_CONTAM => 'HAPLOTECT SUMMARY: contaminationEstimate',
+    HAPLOTECT_CONTAM => 'HAPLOTECT SUMMARY: contaminationEstimate'
 );
 
 my %group4 = (
@@ -58,10 +58,10 @@ my %group4 = (
 );
 
 my %group5 = (
-    FAILED_HOTSPOTS => 'HOTSPOT QC',
+    FAILED_HOTSPOTS => 'HOTSPOT QC'
 );
 
-my @headers = ('Case', (sort keys %group1), (sort keys %group2), (sort keys %group3), (sort keys %group4), (sort keys %group5));
+my @headers = ('Case', (sort keys %group1), (sort keys %group2), (sort keys %group3), (sort keys %group4), (sort keys %group5), 'QC STATUS');
 
 my $out_file = $dir.'/QC_metrics.tsv';
 my $out_fh = IO::File->new(">$out_file") or die "Failed to write to $out_file";
@@ -150,6 +150,8 @@ for my $case_name (readdir $dir_h) {
         push @values, $value;
     }
 
+    push @values, $data->{QC}->{'QC STATUS'}
+    
     $out_fh->print(join "\t", @values);
     $out_fh->print("\n");
     print "$case_id done\n";
