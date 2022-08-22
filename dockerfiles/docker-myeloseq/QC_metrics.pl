@@ -34,7 +34,7 @@ my %group1 = (
     PCT_Q30_BASES_2    => 'MAPPING/ALIGNING SUMMARY: Q30 bases R2 (%)',
     PCT_MAPPED_READS   => 'MAPPING/ALIGNING SUMMARY: Mapped reads (%)',
     MEAN_INSERT_SIZE   => 'MAPPING/ALIGNING SUMMARY: Insert length: mean',
-    PCT_TARGET_BASES_GT_1000x => 'COVERAGE SUMMARY: Target bases >1000x (%)',
+    PCT_TARGET_BASES_GT_250x => 'COVERAGE SUMMARY: Target bases >250x (%)',
     PCT_TARGET_ALIGNED_READS  => 'COVERAGE SUMMARY: Aligned reads in target region (%)',
     AVG_ALIGN_TARGET_COVERAGE => 'COVERAGE SUMMARY: Average alignment coverage over target region',
     PCT_LOW_COVERAGE_AMPLICON => 'AMPLICON SUMMARY: Amplicons with low coverage (%)',
@@ -44,25 +44,24 @@ my %group1 = (
 
 my %group2 = (
     VARIANT_COUNTS_TIER_1_2_3 => 'VARIANTCOUNTS: Tier1-3',
-    VARIANT_COUNTS_LOW_LEVEL  => 'VARIANTCOUNTS: Low Level',
+    VARIANT_COUNTS_NOT_DETECTED  => 'VARIANTCOUNTS: NotDetected'
 );
 
 my %group3 = (
     HAPLOTECT_SITES  => 'HAPLOTECT SUMMARY: informativeSites',
-    HAPLOTECT_CONTAM => 'HAPLOTECT SUMMARY: contaminationEstimate',
+    HAPLOTECT_CONTAM => 'HAPLOTECT SUMMARY: contaminationEstimate'
 );
 
 my %group4 = (
     FAILED_GENES      => 'FAILED GENES',
-    FAILED_GENE_COUNT => 'FAILED GENE COUNT',
-    FAILED_EXON_COUNT => 'FAILED EXON COUNT',
+    FAILED_GENE_COUNT => 'FAILED GENE COUNT'
 );
 
 my %group5 = (
-    FAILED_HOTSPOTS => 'HOTSPOT QC',
+    FAILED_HOTSPOTS => 'HOTSPOT QC'
 );
 
-my @headers = ('Case', (sort keys %group1), (sort keys %group2), (sort keys %group3), (sort keys %group4), (sort keys %group5));
+my @headers = ('Case', (sort keys %group1), (sort keys %group2), (sort keys %group3), (sort keys %group4), (sort keys %group5), 'QC STATUS');
 
 my $out_file = $dir.'/QC_metrics.tsv';
 my $out_fh = IO::File->new(">$out_file") or die "Failed to write to $out_file";
@@ -151,6 +150,8 @@ for my $case_name (readdir $dir_h) {
         push @values, $value;
     }
 
+    push @values, $data->{QC}->{'QC STATUS'}
+    
     $out_fh->print(join "\t", @values);
     $out_fh->print("\n");
     print "$case_id done\n";

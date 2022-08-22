@@ -509,6 +509,25 @@ dt = strftime("%Y-%m-%d %H:%M:%S", gmtime())
 
 caseinfo['date'] = dt
 
+# determine pass/fail/review for case
+hotspotfail = covqcdf[(covqcdf.Type == "hotspot") & (covqcdf.Mean<covLevel1)].shape[0]
+meancov = float(qcdf.loc[qcdf['metric']=='COVERAGE SUMMARY: Average alignment coverage over target region','value'].iat[0])
+targetcov = float(qcdf.loc[qcdf['metric']=='COVERAGE SUMMARY: Target bases >'+str(covLevel1)+'x (%)','value'].iat[0])
+tier13variants = variants[variants['category']=='Tier1-3'].shape[0]
+notdetectedvariants = variants[variants['category']=='NotDetected'].shape[0]
+notdetectedvariantslowLOD = variants[(variants['category']=='NotDetected') & (variants['coverage']<covLevel2)].shape[0]
+
+qcstatus = 'PASS'
+if hotspotfail > float(qcranges['Failed hotspot'].split(',')[0]) or meancov < covLevel2 or targetcov < float(qcranges['COVERAGE SUMMARY: Target bases >'+str(covLevel1)+'x (%)'].split(',')[0]):
+    qcstatus = 'FAIL'
+
+elif priorcases!='NONE' and tier13variants == 0 and notdetectedvariants > 0 and notdetectedvariantslowLOD > 0:
+    qcstatus = 'FAIL'
+
+elif meancov < float(qcranges['COVERAGE SUMMARY: Average alignment coverage over target region'].split(',')[0]):
+    qcstatus = 'NEEDS REVIEW'
+
+
 print("MyeloSeqHD Report for " + caseinfo['name'] + " ---- Generated on: " + dt + "\n")
 
 print("*** MYELOSEQHD CASE INFORMATION ***\n")
@@ -526,6 +545,9 @@ print("EXCEPTIONS:\t" + caseinfo['exception'])
 if (priorcases != 'NONE'):
     priorcases = priorcases + "\t(!)"
 print("PRIOR CASES:\t" + priorcases)
+print("QC STATUS:\t" + qcstatus)
+
+jsonout['QC STATUS'] = qcstatus
 
 jsonout['CASEINFO'] = caseinfo
 
@@ -552,7 +574,7 @@ print("*** HOTSPOT QC ***\n")
 
 xdf = covqcdf[(covqcdf.Type == "hotspot")][['Gene','Region','Mean']]
 xdf = xdf.rename(columns={"Region":"Hotspot"})
-xdf['QC'] = np.where(xdf['Mean'] < covLevel2, '(!)', '')
+xdf['QC'] = np.where(xdf['Mean'] < covLevel1, '(!)', '')
 print(xdf.to_csv(sep='\t',header=True, index=False,float_format='%.1f'))
 jsonout['QC']['HOTSPOT QC'] = xdf.to_dict('split')
 jsonout['QC']['HOTSPOT QC'].pop('index', None)
@@ -637,7 +659,7 @@ jsonout['QC']['VARIANTCOUNTS'] = varcats
 print("*** GENE COVERAGE QC ***\n")
 
 xdf = covqcdf[(covqcdf.Type == "Gene")][['Gene','Mean','covLevel1','covLevel2']]
-xdf['QC'] = np.where((xdf['Mean'] < covLevel2) | (xdf['covLevel1']<minTargetCov), '(!)', '')
+xdf['QC'] = np.where(xdf['covLevel1']<minTargetCov, '(!)', '')
 xdf = xdf.rename(columns={"covLevel1": str(covLevel1)+"x", "covLevel2": str(covLevel2)+"x"})
 print(xdf.to_csv(sep='\t',header=True, index=False,float_format='%.1f'))
 
