@@ -15,6 +15,7 @@
     "AMPLICON SUMMARY: Amplicons with low coverage (%)": ",50",
     "Coverage levels": ["250","2000"],
     "Target fraction at coverage": "95",
+    "Low amplicon readcount": "50",
     "Failed hotspot": "0",
     "Haplotect sites": ",10",
     "Haplotect score": ",0.02",
