@@ -119,7 +119,7 @@ with open(caseinfo['qcrange_file'], 'r') as json_file:
 covLevel1 = int(qcranges['Coverage levels'][0])
 covLevel2 = int(qcranges['Coverage levels'][1])
 minTargetCov = float(qcranges['Target fraction at coverage'])
-
+lowampcount = int(qcranges['Low amplicon readcount'])
 
 #########################################
 #
@@ -246,7 +246,7 @@ df['readcounts'] = df['readcounts'] / 2
 
 qcdf = pd.concat([qcdf,pd.DataFrame([{'metric':'AMPLICON SUMMARY: Mean read pairs per amplicon','value':df['readcounts'].mean()}])])
 qcdf = pd.concat([qcdf,pd.DataFrame([{'metric':'AMPLICON SUMMARY: Amplicons at 0x (%)','value':df[df['readcounts']==0].shape[0] / df.shape[0] * 100}])])
-qcdf = pd.concat([qcdf,pd.DataFrame([{'metric':'AMPLICON SUMMARY: Amplicons with low coverage (%)','value':round(df[df['readcounts']<=df['readcounts'].mean()].shape[0] / df.shape[0] * 100,1)}])])
+qcdf = pd.concat([qcdf,pd.DataFrame([{'metric':'AMPLICON SUMMARY: Amplicons with low coverage (%)','value':round(df[df['readcounts']<=lowampcount].shape[0] / df.shape[0] * 100,1)}])])
 
 # get coverage info
 
