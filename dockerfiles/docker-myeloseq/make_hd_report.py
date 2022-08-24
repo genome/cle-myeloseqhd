@@ -473,7 +473,7 @@ for variant in vcf:
         category = 'Silent/Not Reported'
 
     # maf filter, if there are low level variants with a MAF, put them in another category
-    elif varfilter == 'PASS' and popmaf != 'NA' and popmaf > caseinfo['maxaf'] and 'AMLTCGA' not in customannotation and 'MDS' not in customannotation:
+    elif varfilter == 'PASS' and popmaf != 'NA' and popmaf >= caseinfo['maxaf'] and 'AMLTCGA' not in customannotation and 'MDS' not in customannotation:
         category = 'SNP'
         
     elif (varfilter == 'PASS' and abundance >= caseinfo['mindiscoveryvaf']) or (priorvariants != 'NA' and abundance > 0):
