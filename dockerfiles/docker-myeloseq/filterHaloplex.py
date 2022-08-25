@@ -487,11 +487,7 @@ for vline in vcffile.fetch(reopen=True):
         # do filtering of all variants NOT called by DRAGEN--those we just accept 'PASS' as good enough
 
         if 'dragen' not in callers and len(supportingamplicons) < minampnumber and ao > 0:
-            nrec.filter.add("AMPSupport")
-
-        # min vaf filter
-        if rawvaf < minvaf:
-            nrec.filter.add("LowVAF")
+            nrec.filter.add("AMPSupport")        
 
         # if there are < minstrandreads alt-supporting reads, then calculate the binomial p-value
         # for that observation given the overall VAF and the strand-specific read depth
@@ -514,7 +510,11 @@ for vline in vcffile.fetch(reopen=True):
             ao = rec.samples[mysample]['AD'][1]
             rawvaf = rec.samples[mysample]['AF'] 
 
-        if ao > 0 and len(nrec.filter.values())==0:
+        # min vaf filter
+        if rawvaf < minvaf:
+            nrec.filter.add("LowVAF")
+            
+        if rawvaf >= minvaf and len(nrec.filter.values())==0:
             nrec.filter.add("PASS")
 
         mygt = ('.','.')
