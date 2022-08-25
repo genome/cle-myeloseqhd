@@ -139,9 +139,7 @@ workflow MyeloseqHDAnalysis {
 
     call gather_files {
         input: order_by=upload_DB.done,
-               OutputFiles=[clean_pindel_itd.cleaned_vcf_file,
-               combine_variants.vcf,
-               run_haplotect.out_file,
+               OutputFiles=[run_haplotect.out_file,
                run_haplotect.sites_file,
                run_vep.vcf,
                run_vep.filtered_vcf],
