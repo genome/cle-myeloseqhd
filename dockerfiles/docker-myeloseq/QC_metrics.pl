@@ -53,6 +53,7 @@ my %group3 = (
 );
 
 my %group4 = (
+    QC_STATUS         => 'QC STATUS',
     FAILED_GENES      => 'FAILED GENES',
     FAILED_GENE_COUNT => 'FAILED GENE COUNT'
 );
@@ -61,7 +62,7 @@ my %group5 = (
     FAILED_HOTSPOTS => 'HOTSPOT QC'
 );
 
-my @headers = ('Case', (sort keys %group1), (sort keys %group2), (sort keys %group3), (sort keys %group4), (sort keys %group5), 'QC STATUS');
+my @headers = ('Case', (sort keys %group1), (sort keys %group2), (sort keys %group3), (sort keys %group4), (sort keys %group5));
 
 my $out_file = $dir.'/QC_metrics.tsv';
 my $out_fh = IO::File->new(">$out_file") or die "Failed to write to $out_file";
@@ -150,8 +151,6 @@ for my $case_name (readdir $dir_h) {
         push @values, $value;
     }
 
-    push @values, $data->{QC}->{'QC STATUS'}
-    
     $out_fh->print(join "\t", @values);
     $out_fh->print("\n");
     print "$case_id done\n";
