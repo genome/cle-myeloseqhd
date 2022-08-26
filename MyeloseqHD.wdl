@@ -196,7 +196,13 @@ task dragen_demux {
          /bin/ls ${LocalFastqDir}/*_R2_001.fastq.gz > Read2_list.txt && \
          /bin/mv ${log} ./ && \
          /bin/rm -f ${LocalSampleSheet} && \
-         /bin/cp -r ${LocalReportDir} ${DemuxReportDir}
+         /bin/cp -r ${LocalReportDir} ${DemuxReportDir} && \
+
+         if [ -n "$(/bin/find ${LocalFastqDir}/TW*.fastq.gz -type f -size -10M)" ]; then
+             echo 'demux fastq size checking failed !' && \
+             exit 1
+         fi
+
      >>>
 
      runtime {
@@ -259,7 +265,7 @@ task trim_reads {
      String queue
 
      command {
-         if [[ $Read1 =~ _R1_001 ]]; then
+         if [[ "${Read1}" == *"_R1_001"* ]]; then
              /bin/cp ${Read1} ${Name}.1.fastq.gz && \
              /bin/cp ${Read2} ${Name}.2.fastq.gz
          else
@@ -316,7 +322,7 @@ task dragen_align {
 
          /bin/mkdir ${LocalSampleDir} && \
          /bin/mkdir ${outdir} && \
-         /opt/edico/bin/dragen -r ${DragenRef} --tumor-fastq1 ${fastq1} --tumor-fastq2 ${fastq2} --RGSM-tumor ${SM} --RGID-tumor ${RG} --RGLB-tumor ${LB} --enable-map-align true --enable-sort true --enable-map-align-output true --vc-enable-umi-liquid true --vc-combine-phased-variants-distance 3 --gc-metrics-enable=true --qc-coverage-region-1 ${CoverageBed} --qc-coverage-reports-1 full_res --umi-enable true --umi-library-type=random-simplex --umi-min-supporting-reads ${readfamilysize} --enable-variant-caller=true --vc-target-bed ${CoverageBed} --enable-sv true --sv-call-regions-bed ${CoverageBed} --sv-exome true --sv-output-contigs true --vc-somatic-hotspots ${DragenHotspot} --umi-metrics-interval-file ${CoverageBed} --read-trimmers=fixed-len --trim-r1-5prime=${default=1 TrimLen} --trim-r1-3prime=${default=1 TrimLen} --trim-r2-5prime=${default=1 TrimLen} --trim-r2-3prime=${default=1 TrimLen} --output-dir ${LocalSampleDir} --output-file-prefix ${Name} --output-format BAM &> ${log} && \
+         /opt/edico/bin/dragen -r ${DragenRef} --tumor-fastq1 ${fastq1} --tumor-fastq2 ${fastq2} --RGSM-tumor ${SM} --RGID-tumor ${RG} --RGLB-tumor ${LB} --enable-map-align true --enable-sort true --enable-map-align-output true --vc-enable-umi-liquid true --vc-combine-phased-variants-distance 3 --gc-metrics-enable=true --qc-coverage-region-1 ${CoverageBed} --qc-coverage-reports-1 full_res --umi-enable true --umi-min-supporting-reads ${readfamilysize} --umi-correction-scheme=random --umi-enable-probability-model-merging=false --umi-fuzzy-window-size=0 --enable-variant-caller=true --vc-target-bed ${CoverageBed} --enable-sv true --sv-call-regions-bed ${CoverageBed} --sv-exome true --sv-output-contigs true --vc-somatic-hotspots ${DragenHotspot} --umi-metrics-interval-file ${CoverageBed} --read-trimmers=fixed-len --trim-r1-5prime=${default=1 TrimLen} --trim-r1-3prime=${default=1 TrimLen} --trim-r2-5prime=${default=1 TrimLen} --trim-r2-3prime=${default=1 TrimLen} --output-dir ${LocalSampleDir} --output-file-prefix ${Name} --output-format BAM &> ${log} && \
          /bin/mv ${log} ./ && \
          /bin/mv ${LocalSampleDir} ${dragen_outdir}
      }
