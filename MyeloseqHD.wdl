@@ -7,10 +7,8 @@ workflow MyeloseqHD {
     # index  name  RG_ID  RG_FLOWCELL  RG_LANE  RG_LIB  RG_SAMPLE MRN ALL_MRNs ACCESSION DOB SEX EXCEPTION [R1] [R2]
     
     File? DemuxSampleSheet
-
-    Array[String] Adapters = ["GATCGGAAGAGCACACGTCTGAACTCCAGTCAC","AGATCGGAAGAGCGTCGTGTAGGGAAA"]
-
     String? IlluminaDir
+
     String JobGroup
     String OutputDir
     String RunInfoString
@@ -19,7 +17,14 @@ workflow MyeloseqHD {
     String? CasesExcluded
 
     String Queue
-    String DragenQueue = "duncavagee"
+    String DragenQueue
+    String VariantDB
+
+    Int MinReads
+    Float MinVaf
+    Int readfamilysize = 3
+
+    Array[String] Adapters = ["GATCGGAAGAGCACACGTCTGAACTCCAGTCAC","AGATCGGAAGAGCGTCGTGTAGGGAAA"]
 
     String DragenReference = "/staging/runs/Chromoseq/refdata/dragen_hg38"
     String Reference    = "/storage1/fs1/duncavagee/Active/SEQ/Chromoseq/process/refdata/hg38/all_sequences.fa"
@@ -38,16 +43,11 @@ workflow MyeloseqHD {
     String CustomAnnotationIndex = "/storage1/fs1/duncavagee/Active/SEQ/MyeloSeqHD/process/git/cle-myeloseqhd/accessory_files/myeloseq_custom_annotations.annotated.hg38.vcf.gz.tbi"
     String CustomAnnotationParameters = "MYELOSEQ,vcf,exact,0,TCGA_AC,MDS_AC,MYELOSEQBLACKLIST"
     String GenotypeVcf = "/storage1/fs1/duncavagee/Active/SEQ/MyeloSeqHD/process/git/cle-myeloseqhd/accessory_files/myeloseqhd.forcegenotype.vcf.gz"
-    
-    Int MinReads
-    Float MinVaf
 
     String QC_pl = "/usr/local/bin/QC_metrics.pl"
     String xfer_pl = "/storage1/fs1/duncavagee/Active/SEQ/MyeloSeqHD/process/git/cle-myeloseqhd/scripts/data_transfer.pl"
     String DemuxFastqDir = "/storage1/fs1/gtac-mgi/Active/CLE/assay/myeloseqhd/demux_fastq"
-    String VariantDB  = "/storage1/fs1/gtac-mgi/Active/CLE/validation/cle_validation/CLE_variant_database/myeloseqhd/myeloseqhd_variants.sqlite"
 
-    Int readfamilysize = 3
 
     if (defined(DemuxSampleSheet)){
       call dragen_demux {
