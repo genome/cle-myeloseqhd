@@ -28,5 +28,5 @@
     "MyeloseqHDAnalysis.CustomAnnotationParameters":"MYELOSEQ,vcf,exact,0,TCGA_AC,MDS_AC,MYELOSEQBLACKLIST",
     "MyeloseqHDAnalysis.QcMetrics":"/storage1/fs1/duncavagee/Active/SEQ/MyeloSeqHD/process/git/cle-myeloseqhd/accessory_files/MyeloseqHDQCMetrics.json",
     "MyeloseqHDAnalysis.JobGroup":"/cle/wdl/haloplex",
-    "MyeloseqHDAnalysis.Queue":"gtac-mgi"
+    "MyeloseqHDAnalysis.Queue":"pathology"
 }
