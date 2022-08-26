@@ -439,7 +439,7 @@ for vline in vcffile.fetch(reopen=True):
             rawvaf = 0
         else:
             rawvaf = ao / dp
-        
+
         ampliconcounts = []
 
         # get per amplicon support information
@@ -487,7 +487,7 @@ for vline in vcffile.fetch(reopen=True):
         # do filtering of all variants NOT called by DRAGEN--those we just accept 'PASS' as good enough
 
         if 'dragen' not in callers and len(supportingamplicons) < minampnumber and ao > 0:
-            nrec.filter.add("AMPSupport")        
+            nrec.filter.add("AMPSupport")
 
         # if there are < minstrandreads alt-supporting reads, then calculate the binomial p-value
         # for that observation given the overall VAF and the strand-specific read depth
@@ -506,9 +506,9 @@ for vline in vcffile.fetch(reopen=True):
 
         # if the dragen called this variant, then just use its read counts
         if 'dragen' in callers:
-            ro = rec.samples[mysample]['AD'][0]
-            ao = rec.samples[mysample]['AD'][1]
-            rawvaf = rec.samples[mysample]['AF'] 
+            ro = rec.samples[0]['AD'][0]
+            ao = rec.samples[0]['AD'][1]
+            rawvaf = rec.samples[0]['AF'][0]
 
         # min vaf filter
         if rawvaf < minvaf:

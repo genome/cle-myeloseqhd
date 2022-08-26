@@ -491,7 +491,7 @@ for variant in vcf:
     else:
         category = 'Filtered'
 
-    variants = pd.concat([variants,pd.DataFrame([dict(zip(variants.columns,[category,vartype,varfilter,str(variant.CHROM),str(variant.POS),variant.REF,variant.ALT[0],genotype,gene,transcript,consequence,csyntax,psyntax,exon,str(popmaf) + '%',customannotation,str(variant.format("DP")[0][0]),str(variant.format("AO")[0][0]),str(abundance)+"%",tamp,samp,priorvariants]))])])
+    variants = pd.concat([variants,pd.DataFrame([dict(zip(variants.columns,[category,vartype,varfilter,str(variant.CHROM),str(variant.POS),variant.REF,variant.ALT[0],genotype,gene,transcript,consequence,csyntax,psyntax,exon,str(popmaf) + '%',customannotation,int(variant.format("DP")[0][0]),str(variant.format("AO")[0][0]),str(abundance)+"%",tamp,samp,priorvariants]))])])
 
 print("Starting report...",file=sys.stderr)
     
@@ -547,7 +547,6 @@ if (priorcases != 'NONE'):
 print("PRIOR CASES:\t" + priorcases)
 print("QC STATUS:\t" + qcstatus)
 
-jsonout['QC STATUS'] = qcstatus
 
 jsonout['CASEINFO'] = caseinfo
 
@@ -701,6 +700,7 @@ print("*** MyeloSeqHD Assay Version " + str(qcranges["ASSAY VERSION"]) + " ***\n
 print(qcranges["DISCLAIMER"])
 
 jsonout['QC']['QCINFO'] = qcranges
+jsonout['QC']['QC STATUS'] = qcstatus
 
 original_stdout = sys.stdout
 f.close()
