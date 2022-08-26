@@ -32,7 +32,7 @@ my $wdl  = File::Spec->join($git_dir, 'MyeloseqHDAnalysis.wdl');
 my $json_template = File::Spec->join($git_dir, 'MyeloseqHDAnalysis.json');
 
 my $group  = '/cle/wdl/haloplex';
-my $queue  = 'gtac-mgi';
+my $queue  = 'dspencer';
 my $docker = 'registry.gsc.wustl.edu/apipe-builder/genome_perl_environment:compute1-20';
 
 my $user_group = 'compute-gtac-mgi';
@@ -65,8 +65,8 @@ while (my $line = $fh->getline) {
 $fh->close;
 
 my $ct = 0;
-for my $case_dir (glob("$dir/TW*")) {
-    my ($case_name) = basename($case_dir) =~ /^(TW\S+)_[ATCG]{8}$/;
+for my $case_dir (glob("$dir/TW*"), glob("$dir/H_*")) {
+    my ($case_name) = basename($case_dir) =~ /^(\S+)_[ATCG]{8}$/;
     my $dragen_dir = File::Spec->join($case_dir, 'dragen');
     die "$dragen_dir not existing" unless -d $dragen_dir;
     
