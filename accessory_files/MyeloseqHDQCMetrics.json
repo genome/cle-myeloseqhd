@@ -9,6 +9,7 @@
     "MAPPING/ALIGNING SUMMARY: Insert length: mean": "120,",
     "COVERAGE SUMMARY: Aligned reads in target region (%)": "70,",
     "COVERAGE SUMMARY: Target bases >250x (%)": "90,",
+    "COVERAGE SUMMARY: Target bases >2000x (%)": "80,",
     "COVERAGE SUMMARY: Average alignment coverage over target region": "4000,",
     "UMI SUMMARY: On target mean family depth": "5,15",
     "UMI SUMMARY: Families discarded (%)": ",30",
