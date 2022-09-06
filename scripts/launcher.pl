@@ -22,14 +22,14 @@ use IO::File;
 use File::Spec;
 use File::Compare;
 
-##THIS LAUNCHER SCRIPT NEEDS TO BE RUN ON DRAGEN NODE compute1-dragen-2 TO BE ABLE TO GET ILLUMINA RUN INFO STRING
+##THIS LAUNCHER SCRIPT NEEDS TO BE RUN ON DRAGEN NODE compute1-dragen-2 TO BE ABLE TO CHECK DIFF ON SOME DRAGEN INPUT FILES
 die "Provide rundir, excel sample spreadsheet, and batch name in order" unless @ARGV == 3;
 
 my ($rundir, $sample_sheet, $batch_name) = @ARGV;
+die "$rundir is not valid" unless -d $rundir;
 die "$sample_sheet is not valid" unless -s $sample_sheet;
 
 my $staging_dir = '/staging/runs/MyeloSeqHD';
-my $staging_rundir = $staging_dir.'/rundir';
 my $dir = '/storage1/fs1/duncavagee/Active/SEQ/MyeloSeqHD';
 
 #check diff on two key files
@@ -39,18 +39,6 @@ for my $name (qw(MyeloseqHD.16462-1615924889.CoverageQC.hg38.bed myeloseq_hotspo
     unless (compare($staging, $process)==0) {
         die "$staging and $process are not SAME !";
     }
-}
-
-if ($rundir =~ /$staging_rundir/) {
-    if (-d $rundir) {
-        print "$rundir is ready\n";
-    }
-    else {
-        die "$rundir does not exist. globus-xfer it to /staging first";
-    }
-}
-else {
-    die "globus-xfer $rundir to dragen-2 staging first";
 }
 
 my $git_dir = File::Spec->join($dir, 'process', 'git', 'cle-myeloseqhd');
@@ -75,38 +63,10 @@ unless (-d $out_dir) {
 
 #parsing CoPath dump for MRN, ACCESSION, DOB and Gender
 my $copath_dump = '/storage1/fs1/duncavagee/Active/SEQ/Chromoseq/process/daily_accession/WML_Daily_Accession_Log_CLE.csv';
-my $dump_fh = IO::File->new($copath_dump) or die "fail to open $copath_dump for reading";
-my %hash;
+my $copath_all_dump = '/storage1/fs1/duncavagee/Active/SEQ/Chromoseq/process/daily_accession/WML_Daily_All_Accession_Log_CLE.csv';
 
-while (my $l = $dump_fh->getline) {
-    next if $l =~ /^(Accession|,,,,)/;
-    chomp $l;
-    $l =~ s/\r//g;
-    
-    my @columns = split /,/, $l;
-    my $id  = $columns[2].'_'.$columns[0];
-    my $all_MRNs = $columns[8];
-    $all_MRNs =~ s/\|/,/g;
-    my $sex = $columns[4];
-
-    if ($sex eq 'M') {
-        $sex = 'male';
-    }
-    elsif ($sex eq 'F') {
-        $sex = 'female';
-    }
-    else {
-        #Gender U
-        warn "WARN: unknown gender $sex found for $id";
-    }
-
-    $hash{$id} = {
-        DOB => $columns[5],
-        sex => $sex,
-        all_MRNs => $all_MRNs,
-    };
-}
-$dump_fh->close;
+my %hash = get_info_hash($copath_dump);
+my %all_hash = get_info_hash($copath_all_dump);
 
 #parse sample spreadsheet
 my $data = Spreadsheet::Read->new($sample_sheet);
@@ -132,10 +92,12 @@ for my $row ($sheet->rows()) {
 
     $lib =~ s/\s+//g;
     my ($sample, $mrn, $accession) = $lib =~ /^([A-Z]{4}\-(\d+)\-([A-Z]\d+\-\d+)\-[A-Z0-9]+)\-lib/;
-    my $id = $lib =~ /^H_|Research/ ? 'NONE' : $mrn.'_'.$accession;
+    #my $id = $lib =~ /^H_|Research/ ? 'NONE' : $mrn.'_'.$accession;
+    my $id = ($exception and $exception =~ /RESEQ|RESEARCH|NOTRANSFER/) ? 'NONE' : $mrn.'_'.$accession;
+
     ($sample) = $lib =~ /^(\S+)\-lib/ if $lib =~ /^H_|Research/;
 
-    unless ($lib =~ /^H_|Research/) {
+    unless ($id eq 'NONE') {
         unless ($mrn and $accession) {
             die "Library name: $lib must contain MRN, accession id and specimen type";
         }
@@ -145,30 +107,26 @@ for my $row ($sheet->rows()) {
         }
 
         unless (exists $hash{$id}) {
-            if ($exception and $exception =~ /NOTRANSFER|RESEQ/) {
-                print "$id is NOTRANSFER or RESEQ and no-matching of CoPath dump is ok\n";
-            }
-            else {
-                die "FAIL to find matching $mrn and $accession from CoPath dump for library: $lib";
-            }
+            die "FAIL to find matching $mrn and $accession from CoPath dump for library: $lib";
         }
-    }
-
-    my ($index) = $index_str =~ /([ATGC]{8})AT\-AAAAAAAAAA/;
-
-    if ($exception) {
-        push @cases_excluded, $lib.'_'.$index if $exception =~ /NOTRANSFER/;
-        if ($exception =~ /NOTRANSFER|RESEQ/) {
-            $exception =~ s/,?(NOTRANSFER|RESEQ),?//;
-            $exception = 'NONE' if $exception =~ /^\s*$/;
-        }
-    }
-    else {
-        $exception = 'NONE';
     }
 
     my ($sex, $DOB, $all_MRNs);
-    if ($hash{$id}) {
+    if ($id eq 'NONE') {
+        if ($exception =~ /RESEQ/) {
+            my $all_id = $mrn.'_'.$accession;
+            unless (exists $all_hash{$all_id}) {
+                die "For RESEQ $lib its MRN and accession can not be found in CoPath daily all_accession log";
+            }
+            $sex = $all_hash{$id}->{sex};
+            $DOB = $all_hash{$id}->{DOB};
+            $all_MRNs = $all_hash{$id}->{all_MRNs};
+        }
+        else { #NOTRANSFER  RESEARCH  They will skip query_DB and upload_DB tasks in WF
+            ($mrn, $accession, $sex, $DOB, $all_MRNs) = ('NONE') x 5;
+        }
+    }
+    else {
         $sex = $hash{$id}->{sex};
         $DOB = $hash{$id}->{DOB};
         $all_MRNs = $hash{$id}->{all_MRNs};
@@ -176,10 +134,20 @@ for my $row ($sheet->rows()) {
             die "Unknown gender: $sex for library: $lib";
         }
     }
-    else { #NOTRANSFER  RESEQ
-        ($mrn, $accession, $sex, $DOB, $all_MRNs) = ('NONE') x 5;
+
+    my ($index) = $index_str =~ /([ATGC]{8})AT\-AAAAAAAAAA/;
+
+    if ($exception) {
+        push @cases_excluded, $lib.'_'.$index if $exception =~ /NOTRANSFER/;
+        if ($exception =~ /NOTRANSFER|RESEQ|RESEARCH/) {
+            $exception =~ s/,?(NOTRANSFER|RESEQ|RESEARCH),?//;
+            $exception = 'NONE' if $exception =~ /^\s*$/;
+        }
     }
-    
+    else {
+        $exception = 'NONE';
+    }
+
     $ds_str .= join ',', $lane, $lib, $lib, '', $index, '';
     $ds_str .= "\n";
     $si_str .= join "\t", $index, $lib, $seq_id, $flowcell, $lane, $lib, $sample, $mrn, $all_MRNs, $accession, $DOB, $sex, $exception;
@@ -277,3 +245,42 @@ my $cmd = "bsub -g $group -G $user_group -oo $out_log -eo $err_log -q $queue -R 
 system $cmd;
 #print $cmd."\n";
 
+sub get_info_hash {
+    my $file = shift;
+    my $dump_fh = IO::File->new($file) or die "fail to open $file for reading";
+    my %info_hash;
+
+    while (my $l = $dump_fh->getline) {
+        next if $l =~ /^(Accession|,,,,)/;
+        next unless $l =~ /MyeloSeq\s/;
+
+        chomp $l;
+        $l =~ s/\r//g;
+
+        my @columns = split /,/, $l;
+        my $id  = $columns[2].'_'.$columns[0];
+        my $all_MRNs = $columns[8];
+        $all_MRNs =~ s/\|/,/g;
+        my $sex = $columns[4];
+
+        if ($sex eq 'M') {
+            $sex = 'male';
+        }
+        elsif ($sex eq 'F') {
+            $sex = 'female';
+        }
+        else {
+            #Gender U
+            warn "WARN: unknown gender $sex found for $id";
+        }
+
+        $info_hash{$id} = {
+            DOB => $columns[5],
+            sex => $sex,
+            all_MRNs => $all_MRNs,
+        };
+    }
+    $dump_fh->close;
+
+    return %info_hash;
+}
