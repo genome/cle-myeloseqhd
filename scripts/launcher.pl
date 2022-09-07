@@ -16,31 +16,17 @@ umask 002;
 
 use lib "/storage1/fs1/duncavagee/Active/SEQ/Chromoseq/process/perl5/lib/perl5";
 use Spreadsheet::Read;
-use File::Copy::Recursive qw(dircopy);
 use JSON qw(from_json to_json);
 use IO::File;
 use File::Spec;
-use File::Compare;
 
-##THIS LAUNCHER SCRIPT NEEDS TO BE RUN ON DRAGEN NODE compute1-dragen-2 TO BE ABLE TO CHECK DIFF ON SOME DRAGEN INPUT FILES
 die "Provide rundir, excel sample spreadsheet, and batch name in order" unless @ARGV == 3;
 
 my ($rundir, $sample_sheet, $batch_name) = @ARGV;
 die "$rundir is not valid" unless -d $rundir;
 die "$sample_sheet is not valid" unless -s $sample_sheet;
 
-my $staging_dir = '/staging/runs/MyeloSeqHD';
 my $dir = '/storage1/fs1/duncavagee/Active/SEQ/MyeloSeqHD';
-
-#check diff on two key files
-for my $name (qw(MyeloseqHD.16462-1615924889.CoverageQC.hg38.bed myeloseq_hotspots.vcf.gz)) {
-    my $staging = File::Spec->join($staging_dir, 'dragen_align_inputs', $name);
-    my $process = File::Spec->join($dir, 'process', 'git', 'cle-myeloseqhd', 'accessory_files', $name);
-    unless (compare($staging, $process)==0) {
-        die "$staging and $process are not SAME !";
-    }
-}
-
 my $git_dir = File::Spec->join($dir, 'process', 'git', 'cle-myeloseqhd');
 
 my $conf = File::Spec->join($git_dir, 'application.conf');
@@ -118,9 +104,9 @@ for my $row ($sheet->rows()) {
             unless (exists $all_hash{$all_id}) {
                 die "For RESEQ $lib its MRN and accession can not be found in CoPath daily all_accession log";
             }
-            $sex = $all_hash{$id}->{sex};
-            $DOB = $all_hash{$id}->{DOB};
-            $all_MRNs = $all_hash{$id}->{all_MRNs};
+            $sex = $all_hash{$all_id}->{sex};
+            $DOB = $all_hash{$all_id}->{DOB};
+            $all_MRNs = $all_hash{$all_id}->{all_MRNs};
         }
         else { #NOTRANSFER  RESEARCH  They will skip query_DB and upload_DB tasks in WF
             ($mrn, $accession, $sex, $DOB, $all_MRNs) = ('NONE') x 5;
