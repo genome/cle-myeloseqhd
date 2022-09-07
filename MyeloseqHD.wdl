@@ -384,7 +384,7 @@ task batch_qc {
          /usr/bin/perl ${QC_pl} ${BatchDir}
      }
      runtime {
-         docker_image: "registry.gsc.wustl.edu/mgi-cle/myeloseqhd:v1"
+         docker_image: "registry.gsc.wustl.edu/mgi-cle/myeloseqhd:v2"
          memory: "4 G"
          queue: queue
          job_group: jobGroup

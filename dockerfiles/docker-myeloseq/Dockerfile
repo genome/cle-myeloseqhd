@@ -111,15 +111,6 @@ RUN wget https://github.com/samtools/bcftools/releases/download/1.13/bcftools-1.
     cd / && \
     rm -rf /tmp/bcftools-1.13
 
-################
-#freebayes 1.3.4#
-################
-
-WORKDIR /tmp
-RUN wget https://github.com/freebayes/freebayes/releases/download/v1.3.4/freebayes-1.3.4-linux-static-AMD64.gz && \
-    gunzip freebayes-1.3.4-linux-static-AMD64.gz && \
-    cp freebayes-1.3.4-linux-static-AMD64 /usr/local/bin/freebayes && \
-    chmod 755 /usr/local/bin/freebayes
 
 ################
 #tagbam        #
@@ -135,17 +126,6 @@ RUN git clone https://github.com/dhspence/tagbam.git && cd /tmp/tagbam && \
 
 
 ##############
-## bedtools ##
-##############
-
-WORKDIR /usr/local
-RUN git clone https://github.com/arq5x/bedtools2.git && \
-    cd /usr/local/bedtools2 && \
-    git checkout v2.27.0 && \
-    make && \
-    ln -s /usr/local/bedtools2/bin/* /usr/local/bin/
-
-##############
 #perl modules#
 ##############
 
@@ -153,7 +133,7 @@ RUN cpan install Statistics::Basic
 RUN cpan install JSON 
 
 ################
-#filter script #
+#scripts       #
 ################
 
 COPY variantDB.py /usr/local/bin/
