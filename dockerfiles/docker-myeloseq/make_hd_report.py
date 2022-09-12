@@ -521,8 +521,8 @@ qcstatus = 'PASS'
 if hotspotfail > float(qcranges['Failed hotspot'].split(',')[0]) or meancov < covLevel2 or targetcov < float(qcranges['COVERAGE SUMMARY: Target bases >'+str(covLevel1)+'x (%)'].split(',')[0]):
     qcstatus = 'FAIL'
 
-elif priorcases!='NONE' and tier13variants == 0 and notdetectedvariants > 0 and notdetectedvariantslowLOD > 0:
-    qcstatus = 'FAIL'
+#elif priorcases!='NONE' and tier13variants == 0 and notdetectedvariants > 0 and notdetectedvariantslowLOD > 0:
+#    qcstatus = 'FAIL'
 
 elif meancov < float(qcranges['COVERAGE SUMMARY: Average alignment coverage over target region'].split(',')[0]):
     qcstatus = 'NEEDS REVIEW'
