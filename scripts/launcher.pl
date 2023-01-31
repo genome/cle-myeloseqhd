@@ -70,7 +70,14 @@ for my $row ($sheet->rows()) {
         die "Lane number is expected, Check sample sheet spreadsheet";
     }
     my ($lane, $flowcell, $lib, $index_str, $exception) = @$row;
-    $exception =~ s/\s+/_/g if $exception;
+
+    if ($exception) {
+        $exception =~ s/^\s+//;
+        $exception =~ s/\s+$//;
+        $exception =~ s/,\s+/,/g;
+        $exception =~ s/\s+,/,/g;
+        $exception =~ s/\s+/_/g;
+    }
 
     if ($exception and $exception =~ /NOTRANSFER/ and $exception =~ /RESEQ/) {
         die "$lib has both NOTRANSFER and RESEQ as exception and only one is allowed.";
@@ -81,7 +88,7 @@ for my $row ($sheet->rows()) {
     #my $id = $lib =~ /^H_|Research/ ? 'NONE' : $mrn.'_'.$accession;
     my $id = ($exception and $exception =~ /RESEQ|RESEARCH|NOTRANSFER/) ? 'NONE' : $mrn.'_'.$accession;
 
-    ($sample) = $lib =~ /^(\S+)\-lib/ if $lib =~ /^H_|Research/;
+    ($sample) = $lib =~ /^(\S+)\-lib/ if $lib =~ /^H_|Research|Positive\-Control/;
 
     unless ($id eq 'NONE') {
         unless ($mrn and $accession) {
