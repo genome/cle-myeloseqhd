@@ -307,7 +307,7 @@ task combine_variants {
      Float? Vaf
 
      command {
-         /usr/local/bin/bcftools merge --force-samples -Oz ${sep=" " Vcfs} | /usr/local/bin/bcftools sort -Oz -o combined.vcf.gz && \
+         /usr/local/bin/bcftools merge -F x --force-samples -Oz ${sep=" " Vcfs} | /usr/local/bin/bcftools sort -Oz -o combined.vcf.gz && \
          /usr/bin/tabix -p vcf combined.vcf.gz && \
          /usr/bin/python3 /usr/local/bin/filterHaloplex.py -r ${refFasta} --minreadsperfamily ${default='3' MinReadsPerFamily} -m ${default='5' Reads} -d ${default='0.02' Vaf} combined.vcf.gz ${Cram} ${Name} > ${Name}.combined_and_tagged.vcf
      }
