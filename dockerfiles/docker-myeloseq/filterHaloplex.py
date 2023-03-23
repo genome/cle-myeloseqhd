@@ -171,19 +171,47 @@ for k in vcffile.header.filters.keys():
     if k not in filters:
         vcffile.header.filters[k].remove_header()
 
-vcffile.header.info.add("set",1,'String','Callers that identified this variant')
-vcffile.header.filters.add("AMPSupport",None,None,'Fails requirement of having >='+str(minampnumber)+' amplicons with support for the variant')
-vcffile.header.filters.add("LowReads",None,None,'Fails requirement of having >='+str(minreads)+' supporting the variant')
-vcffile.header.filters.add("LowQualReadBias",None,None,'PHRED-scaled P-value > 10 of non-variant vs variant alleles in failed vs. passing reads')
-vcffile.header.filters.add("LowQualReads",None,None,'Failed requirement of having a minimum of 90% high quality reads at the variant position')
-vcffile.header.filters.add("LowVAF",None,None,'Calculated VAF <'+str(minvaf))
-vcffile.header.filters.add("StrandSupport",None,None,'Variant allele support is lacking on one strand despite adequate coverage (binomial P < '+str(strandpvalue)+' for observing at least '+str(minreads)+' given the coverage on that strand')
-vcffile.header.formats.add("LQRB", 1, 'String', 'HQ read non-variant allele count, LQ read non-variant allele count, HQ read variant allele count, LQ read variant allele count,PHRED-scaled P-value for Low Quality read variant allele bias')
-vcffile.header.formats.add("ST", 1, 'String', 'Counts of plus and minus read counts for alt allele')
-vcffile.header.formats.add("TAMP", 1, 'Integer', 'Estimated number of Haloplex amplicons at this position')
-vcffile.header.formats.add("SAMP", 1, 'Integer', 'Estimated number of Haloplex amplicons at this position that support the alternate allele')
-vcffile.header.formats.add("AMPS", 1, 'String', 'Amplicon string, in the format amplicon id 1,num. reference alleles in amplicon 1, num. alternate alleles in amplicon 1;amplicon id 2,num ref, num alt;...')
-vcffile.header.formats.add("VAF", 1, 'Float', 'Variant allele fraction')
+# add info tags (if not already there)
+if 'set' not in vcffile.header.info.keys():
+    vcffile.header.info.add("set",1,'String','Callers that identified this variant')
+
+# add filters (if not already there)
+if 'AMPSupport' not in vcffile.header.filters.keys():
+    vcffile.header.filters.add("AMPSupport",None,None,'Fails requirement of having >='+str(minampnumber)+' amplicons with support for the variant')
+
+if 'LowReads' not in vcffile.header.filters.keys():
+    vcffile.header.filters.add("LowReads",None,None,'Fails requirement of having >='+str(minreads)+' supporting the variant')
+
+if 'LowQualReadBias' not in vcffile.header.filters.keys():
+    vcffile.header.filters.add("LowQualReadBias",None,None,'PHRED-scaled P-value > 10 of non-variant vs variant alleles in failed vs. passing reads')
+
+if 'LowQualReads' not in vcffile.header.filters.keys():
+    vcffile.header.filters.add("LowQualReads",None,None,'Failed requirement of having a minimum of 90% high quality reads at the variant position')
+
+if 'LowVAF' not in vcffile.header.filters.keys():
+    vcffile.header.filters.add("LowVAF",None,None,'Calculated VAF <'+str(minvaf))
+
+if 'StrandSupport' not in vcffile.header.filters.keys():
+    vcffile.header.filters.add("StrandSupport",None,None,'Variant allele support is lacking on one strand despite adequate coverage (binomial P < '+str(strandpvalue)+' for observing at least '+str(minreads)+' given the coverage on that strand')
+
+# add format fields (if not already there)
+if 'LQRB' not in vcffile.header.formats.keys():
+    vcffile.header.formats.add("LQRB", 1, 'String', 'HQ read non-variant allele count, LQ read non-variant allele count, HQ read variant allele count, LQ read variant allele count,PHRED-scaled P-value for Low Quality read variant allele bias')
+
+if 'ST' not in vcffile.header.formats.keys():
+    vcffile.header.formats.add("ST", 1, 'String', 'Counts of plus and minus read counts for alt allele')
+
+if 'TAMP' not in vcffile.header.formats.keys():
+    vcffile.header.formats.add("TAMP", 1, 'Integer', 'Estimated number of Haloplex amplicons at this position')
+
+if 'SAMP' not in vcffile.header.formats.keys():
+    vcffile.header.formats.add("SAMP", 1, 'Integer', 'Estimated number of Haloplex amplicons at this position that support the alternate allele')
+
+if 'AMPS' not in vcffile.header.formats.keys():
+    vcffile.header.formats.add("AMPS", 1, 'String', 'Amplicon string, in the format amplicon id 1,num. reference alleles in amplicon 1, num. alternate alleles in amplicon 1;amplicon id 2,num ref, num alt;...')
+
+if 'VAF' not in vcffile.header.formats.keys():
+    vcffile.header.formats.add("VAF", 1, 'Float', 'Variant allele fraction')
 
 if 'AD' not in vcffile.header.formats.keys():
     vcffile.header.formats.add('AD', 'R', 'Integer', 'Allelic depths (counting only informative reads out of the total reads) for the ref and alt alleles in the order listed')
@@ -200,6 +228,8 @@ if 'RO' not in vcffile.header.formats.keys():
 if 'AO' not in vcffile.header.formats.keys():
     vcffile.header.formats.add('AO', 1, 'Integer', 'Alternate allele observation count')
 
+
+# print header
 hdr = str(vcffile.header).rstrip().split("\n")
 hd = hdr.pop()
 print("\n".join(hdr) + "\n" + ("\t".join((hd.split("\t"))[0:9])) + "\t" + mysample)
@@ -215,16 +245,9 @@ for vline in vcffile.fetch(reopen=True):
     if 'hotspot' in vline.info.keys():
         callers.append('dragen')
 
-    if 'ODDS' in vline.info.keys():
-        callers.append('freebayes')
-
     if 'HOMLEN' in vline.info.keys():
         callers.append('pindel')
-
-    # must be a passing variant, a genotyping variant, or in the database to proceed
-    if 'MyeloSeqHDForceGT' not in vline.info.keys() and 'MyeloSeqHDDB' not in vline.info.keys() and 'PASS' not in vline.filter.keys():
-        continue
-    
+   
     # handle multiallelic entries in the VCF (and split them)
     for alt in vline.alts:
 
@@ -420,10 +443,6 @@ for vline in vcffile.fetch(reopen=True):
         # total depth
         dp = passing['names'].drop_duplicates().shape[0]
 
-        # dont even print variants with <minreads and the variant has no previous records from the database (indicated by the 'MyeloSeqHDDB' info field)
-        if ao < minreads and 'MyeloSeqHDDB' not in rec.info.keys() and 'MyeloSeqHDForceGT' not in rec.info.keys():
-            continue
-
         # if the variant does exist in the database and there are fewer than minreads or the variant wasnt called then set minreads to 0 because <minreads is below the validated threshold.
         if (ao < minreads or len(callers)==0) and 'MyeloSeqHDDB' in rec.info.keys():
             ao = 0
@@ -482,36 +501,46 @@ for vline in vcffile.fetch(reopen=True):
             sb = min(min(99,int(-10 * math.log(binom.pmf(plusaltreads, plusaltreads+minusaltreads,plusrefreads/(plusrefreads+minusrefreads)) or 1.258925e-10,10))),min(99,int(-10 * math.log(binom.pmf(plusaltreads, plusaltreads+minusaltreads,minusrefreads/(plusrefreads+minusrefreads)) or 1.258925e-10,10))))
 
         nrec = vcffile.new_record()
-        
-        # do filtering of all variants NOT called by DRAGEN--those we just accept 'PASS' as good enough
 
-        if 'dragen' not in callers and len(supportingamplicons) < minampnumber and ao > 0:
-            nrec.filter.add("AMPSupport")
+        # if dragen is the only caller then use those counts and the filter flag        
+        if len(callers)==1 and callers[0]=='dragen':
 
-        # if there are < minstrandreads alt-supporting reads, then calculate the binomial p-value
-        # for that observation given the overall VAF and the strand-specific read depth
-        if 'dragen' not in callers and ao > 0 and ((plusaltreads+plusrefreads > 0 and plusaltreads < minstrandreads and binom.cdf(minstrandreads, plusaltreads+plusrefreads,rawvaf, loc=0) < strandpvalue) or (minusaltreads+minusrefreads > 0 and minusaltreads < minstrandreads and binom.cdf(minstrandreads, minusaltreads+minusrefreads,rawvaf, loc=0) < strandpvalue)):
-            nrec.filter.add("StrandSupport")
-
-        if 'dragen' not in callers and ao > 0 and failedreadbias > lqrb_pvalue:
-            nrec.filter.add("LowQualReadBias")
-
-        if 'dragen' not in callers and ao > 0 and readdat.shape[0] > 0:
-            if readdat[(readdat["readquals"]=='pass')].shape[0] / readdat.shape[0] < minhqreads:
-                nrec.filter.add("LowQualReads")
-
-        # if the dragen called this variant, then just use its read counts
-        if 'dragen' in callers:
             ro = rec.samples[0]['AD'][0]
             ao = rec.samples[0]['AD'][1]
             rawvaf = rec.samples[0]['AF'][0]
+            for v in rec.filter.keys():
+                nrec.filter.add(v) 
+
+        # if other callers made this call then do custom filtering
+        else:
+             
+            if len(supportingamplicons) < minampnumber and ao > 0:
+                nrec.filter.add("AMPSupport")
+
+            # if there are < minstrandreads alt-supporting reads, then calculate the binomial p-value
+            # for that observation given the overall VAF and the strand-specific read depth
+            if ao > 0 and ((plusaltreads+plusrefreads > 0 and plusaltreads < minstrandreads and binom.cdf(minstrandreads, plusaltreads+plusrefreads,rawvaf, loc=0) < strandpvalue) or (minusaltreads+minusrefreads > 0 and minusaltreads < minstrandreads and binom.cdf(minstrandreads, minusaltreads+minusrefreads,rawvaf, loc=0) < strandpvalue)):
+                nrec.filter.add("StrandSupport")
+
+            if ao > 0 and failedreadbias > lqrb_pvalue:
+                nrec.filter.add("LowQualReadBias")
+
+            if ao > 0 and readdat.shape[0] > 0:
+                if readdat[(readdat["readquals"]=='pass')].shape[0] / readdat.shape[0] < minhqreads:
+                    nrec.filter.add("LowQualReads")
 
         # min vaf filter
         if rawvaf < minvaf:
             nrec.filter.add("LowVAF")
-            
-        if rawvaf >= minvaf and len(nrec.filter.values())==0:
+
+        if len(nrec.filter.values())==0:
             nrec.filter.add("PASS")
+
+        # dont even print variants with <minreads and the variant has no previous records from the database (indicated by the 'MyeloSeqHDDB' info field)
+        if ao < minreads and 'MyeloSeqHDDB' not in rec.info.keys() and 'MyeloSeqHDForceGT' not in rec.info.keys():
+            continue       
+
+        # otherwise, continue and print variant
 
         mygt = ('.','.')
         if rawvaf > .98:
