@@ -72,7 +72,7 @@ workflow MyeloseqHD {
     scatter (samples in inputData){
 
         if(!defined(DemuxSampleSheet)){
-          call trim_reads {
+          call trim_adapters {
               input: Read1=samples[13],
               Read2=samples[14],
               Adapters=Adapters,
@@ -82,11 +82,19 @@ workflow MyeloseqHD {
           }
         }
 
+        call trim_ends {
+              input: Read1=select_first([trim_adapters.read1,samples[13]]),
+              Read2=select_first([trim_adapters.read2,samples[14]]),
+              Name=samples[1],
+              queue=Queue,
+              jobGroup=JobGroup
+        }
+
         call dragen_align {
             input: DragenRef=DragenReference,
                    Hotspot=Hotspot,
-                   fastq1=select_first([trim_reads.read1,samples[13]]),
-                   fastq2=select_first([trim_reads.read2,samples[14]]),
+                   fastq1=trim_ends.read1,
+                   fastq2=trim_ends.read2,
                    Name=samples[1],
                    RG=samples[3] + '.' + samples[4] + '.' + samples[0],
                    SM=samples[6],
@@ -255,7 +263,7 @@ task prepare_samples {
      }
 }
 
-task trim_reads {
+task trim_adapters {
      String Read1
      String Read2
      Array[String] Adapters
@@ -264,19 +272,19 @@ task trim_reads {
      String queue
 
      command {
-         if [[ "${Read1}" == *"_R1_001"* ]]; then
+        if [[ "${Read1}" == *"_R1_001"* ]]; then
              /bin/cp ${Read1} ${Name}.1.fastq.gz && \
              /bin/cp ${Read2} ${Name}.2.fastq.gz
-         else
-             export PYTHONPATH=/opt/cutadapt/lib/python2.7/site-packages/ && \
-             /opt/cutadapt/bin/cutadapt -a ${Adapters[0]} -A ${Adapters[1]} -o ${Name}.1.fastq.gz -p ${Name}.2.fastq.gz ${Read1} ${Read2}
-         fi
+        else
+            fastp -w 4 -i ${Read1} --adapter_sequence ${Adapters[0]} -o ${Name}.1.fastq.gz \
+            -I ${Read2} --adapter_sequence_r2 ${Adapters[1]} -O ${Name}.2.fastq.gz
+        fi
      }
 
      runtime {
-         docker_image: "registry.gsc.wustl.edu/fdu/cutadapt:1"
-         cpu: "1"
-         memory: "8 G"
+         docker_image: "dhspence/docker-fastp"
+         cpu: "4"
+         memory: "32 G"
          queue: queue
          job_group: jobGroup
      }
@@ -285,6 +293,32 @@ task trim_reads {
          File read2 = "${Name}.2.fastq.gz"
      }
 }
+
+task trim_ends {
+     String Read1
+     String Read2
+     String Name
+     String jobGroup
+     String queue
+
+     command {
+        fastp -w 4 -i ${Read1} --trim_front1 1 --trim_tail1 1 -o ${Name}.1.fastq.gz \
+        -I ${Read2} --trim_front2 1 --trim_tail2 1 -O ${Name}.2.fastq.gz
+     }
+
+     runtime {
+         docker_image: "dhspence/docker-fastp"
+         cpu: "4"
+         memory: "32 G"
+         queue: queue
+         job_group: jobGroup
+     }
+     output {
+         File read1 = "${Name}.1.fastq.gz"
+         File read2 = "${Name}.2.fastq.gz"
+     }
+}
+
 
 task dragen_align {
      String Name
