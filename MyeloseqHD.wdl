@@ -291,7 +291,7 @@ task trim_adapters {
      }
 
      runtime {
-         docker_image: "dhspence/docker-fastp"
+         docker_image: "docker1(dhspence/docker-fastp)"
          cpu: "4"
          memory: "32 G"
          queue: queue
@@ -316,7 +316,7 @@ task trim_ends {
      }
 
      runtime {
-         docker_image: "dhspence/docker-fastp"
+         docker_image: "docker1(dhspence/docker-fastp)"
          cpu: "4"
          memory: "32 G"
          queue: queue
@@ -369,8 +369,6 @@ task dragen_align {
          /opt/edico/bin/dragen -r ${DragenRef} --tumor-fastq1 ${fastq1} --tumor-fastq2 ${fastq2} --RGSM-tumor ${SM} --RGID-tumor ${RG} --RGLB-tumor ${LB} \
          --umi-enable true --umi-min-supporting-reads ${readfamilysize}  --umi-enable-probability-model-merging=false \
          --umi-correction-scheme=random --umi-fuzzy-window-size=0 --umi-metrics-interval-file ${CoverageBed} \
-         --read-trimmers=fixed-len --trim-r1-5prime=${default=1 TrimLen} --trim-r1-3prime=${default=1 TrimLen} \
-         --trim-r2-5prime=${default=1 TrimLen} --trim-r2-3prime=${default=1 TrimLen} \
          --qc-coverage-region-1 ${CoverageBed} --qc-coverage-reports-1 full_res --qc-coverage-ignore-overlaps true \
          --enable-map-align true --enable-sort true --enable-map-align-output true --gc-metrics-enable=true \
          --enable-variant-caller=true --vc-enable-umi-liquid true --vc-target-bed ${CoverageBed} --vc-somatic-hotspots ${Hotspot} \
