@@ -86,9 +86,19 @@ workflow MyeloseqHD {
           }
         }
 
+        if (defined(DemuxSampleSheet)){
+          call copy_reads {
+              input: Read1=samples[13],
+              Read2=samples[14],
+              Name=samples[1],
+              queue=DragenQueue,
+              jobGroup=JobGroup
+          }
+        }
+
         call trim_ends {
-              input: Read1=select_first([trim_adapters.read1,samples[13]]),
-              Read2=select_first([trim_adapters.read2,samples[14]]),
+              input: Read1=select_first([trim_adapters.read1,copy_reads.read1]),
+              Read2=select_first([trim_adapters.read2,copy_reads.read2]),
               Name=samples[1],
               queue=Queue,
               jobGroup=JobGroup
@@ -300,6 +310,29 @@ task trim_adapters {
      output {
          File read1 = "${Name}.1.fastq.gz"
          File read2 = "${Name}.2.fastq.gz"
+     }
+}
+
+task copy_reads {
+     String Read1
+     String Read2
+     String Name
+     String jobGroup
+     String queue
+
+     command {
+        /bin/cp ${Read1} ${Name}.demux.1.fastq.gz && \
+        /bin/cp ${Read2} ${Name}.demux.2.fastq.gz
+     }
+
+     runtime {
+         docker_image: "docker1(ubuntu:xenial)"
+         queue: queue
+         job_group: jobGroup
+     }
+     output {
+         File read1 = "${Name}.demux.1.fastq.gz"
+         File read2 = "${Name}.demux.2.fastq.gz"
      }
 }
 
