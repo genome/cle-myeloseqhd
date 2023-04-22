@@ -197,7 +197,7 @@ task convert_bam {
      >>>
 
      runtime {
-         docker_image: "registry.gsc.wustl.edu/mgi-cle/myeloseqhd:v2"
+         docker_image: "docker1(registry.gsc.wustl.edu/mgi-cle/myeloseqhd:v2)"
          cpu: "1"
          memory: "24 G"
          queue: queue
@@ -232,7 +232,7 @@ task run_pindel_region {
      >>>
 
      runtime {
-         docker_image: "registry.gsc.wustl.edu/mgi-cle/pindel2vcf-0.6.3:1"
+         docker_image: "docker1(registry.gsc.wustl.edu/mgi-cle/pindel2vcf-0.6.3:1)"
          cpu: "1"
          memory: "16 G"
          queue: queue
@@ -254,7 +254,7 @@ task bgzip_tabix {
          /usr/bin/tabix -p vcf ${Name}.bgzip_tabix.vcf.gz
      }
      runtime {
-         docker_image: "registry.gsc.wustl.edu/mgi-cle/myeloseqhd:v2"
+         docker_image: "docker1(registry.gsc.wustl.edu/mgi-cle/myeloseqhd:v2)"
          cpu: "1"
          memory: "8 G"
          queue: queue
@@ -281,7 +281,7 @@ task clean_variants {
      }
 
      runtime {
-         docker_image: "registry.gsc.wustl.edu/mgi-cle/myeloseqhd:v2"
+         docker_image: "docker1(registry.gsc.wustl.edu/mgi-cle/myeloseqhd:v2)"
          cpu: "1"
          memory: "16 G"
          queue: queue
@@ -309,11 +309,11 @@ task combine_variants {
      command {
          /usr/local/bin/bcftools merge -F x --force-samples -Oz ${sep=" " Vcfs} | /usr/local/bin/bcftools sort -Oz -o combined.vcf.gz && \
          /usr/bin/tabix -p vcf combined.vcf.gz && \
-         /usr/bin/python3 /usr/local/bin/filterHaloplex.py -r ${refFasta} --minreadsperfamily ${default='3' MinReadsPerFamily} -m ${default='5' Reads} -d ${default='0.02' Vaf} combined.vcf.gz ${Cram} ${Name} > ${Name}.combined_and_tagged.vcf
+         /usr/bin/python3 /home/fdu/git/cle-myeloseqhd/dockerfiles/docker-myeloseq/filterHaloplex.py -r ${refFasta} --minreadsperfamily ${default='3' MinReadsPerFamily} -m ${default='5' Reads} -d ${default='0.02' Vaf} combined.vcf.gz ${Cram} ${Name} > ${Name}.combined_and_tagged.vcf
      }
 
      runtime {
-         docker_image: "registry.gsc.wustl.edu/mgi-cle/myeloseqhd:v2"
+         docker_image: "docker1(registry.gsc.wustl.edu/mgi-cle/myeloseqhd:v2)"
          cpu: "1"
          memory: "10 G"
          queue: queue
@@ -354,7 +354,7 @@ task run_vep {
          fi
      }
      runtime {
-         docker_image: "registry.gsc.wustl.edu/mgi-cle/vep105-htslib1.9:1"
+         docker_image: "docker1(registry.gsc.wustl.edu/mgi-cle/vep105-htslib1.9:1)"
          cpu: "1"
          memory: "10 G"
          queue: queue
@@ -388,7 +388,7 @@ task run_haplotect {
      >>>
 
      runtime {
-         docker_image: "registry.gsc.wustl.edu/mgi-cle/haplotect:0.3"
+         docker_image: "docker1(registry.gsc.wustl.edu/mgi-cle/haplotect:0.3)"
          cpu: "1"
          memory: "8 G"
          queue: queue
@@ -426,7 +426,7 @@ task make_report {
          /bin/mv ./*.report.txt ./*.report.json ${SampleOutDir}
      }
      runtime {
-         docker_image: "registry.gsc.wustl.edu/mgi-cle/myeloseqhd:v2"
+         docker_image: "docker1(registry.gsc.wustl.edu/mgi-cle/myeloseqhd:v2)"
          cpu: "1"
          memory: "16 G"
          queue: queue
@@ -452,7 +452,7 @@ task gather_files {
          /bin/mv -f -t ${OutputDir}/${SubDir} ${sep=" " OutputFiles}
      }
      runtime {
-         docker_image: "registry.gsc.wustl.edu/genome/lims-compute-xenial:1"
+         docker_image: "docker1(registry.gsc.wustl.edu/genome/lims-compute-xenial:1)"
          queue: queue
          job_group: jobGroup
      }
@@ -474,7 +474,7 @@ task upload_DB {
          /usr/bin/python3 /usr/local/bin/variantDB.py -d ${VariantDB} -v ${Vcf} -c ${CoverageBed} -i ${mrn} -j ${accession}
      }
      runtime {
-         docker_image: "registry.gsc.wustl.edu/mgi-cle/myeloseqhd:v2"
+         docker_image: "docker1(registry.gsc.wustl.edu/mgi-cle/myeloseqhd:v2)"
          memory: "4 G"
          queue: queue
          job_group: jobGroup
@@ -495,7 +495,7 @@ task query_DB {
          /usr/bin/python3 /usr/local/bin/variantDB.py -d ${VariantDB} -m ${mrn} -a ${accession}
      }
      runtime {
-         docker_image: "registry.gsc.wustl.edu/mgi-cle/myeloseqhd:v2"
+         docker_image: "docker1(registry.gsc.wustl.edu/mgi-cle/myeloseqhd:v2)"
          memory: "4 G"
          queue: queue
          job_group: jobGroup

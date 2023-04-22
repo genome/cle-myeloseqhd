@@ -8,6 +8,7 @@ workflow MyeloseqHD {
     
     File? DemuxSampleSheet
     String? IlluminaDir
+    String? DragenEnv
 
     String JobGroup
     String OutputDir
@@ -18,6 +19,7 @@ workflow MyeloseqHD {
 
     String Queue
     String DragenQueue
+    String DragenDockerImage
     String VariantDB
 
     Int MinReads
@@ -53,6 +55,8 @@ workflow MyeloseqHD {
         input: Dir=IlluminaDir,
         OutputDir=OutputDir,
         SampleSheet=DemuxSampleSheet,
+        DragenEnv=DragenEnv,
+        DragenDockerImage=DragenDockerImage,
         queue=DragenQueue,
         jobGroup=JobGroup
       }
@@ -104,6 +108,8 @@ workflow MyeloseqHD {
                    CoverageBed=CoverageBed,
                    OutputDir=OutputDir,
                    SubDir=samples[1] + '_' + samples[0],
+                   DragenEnv=DragenEnv,
+                   DragenDockerImage=DragenDockerImage,
                    queue=DragenQueue,
                    jobGroup=JobGroup
         }
@@ -187,6 +193,8 @@ task dragen_demux {
      String SampleSheet
      String jobGroup
      String queue
+     String DragenDockerImage
+     String? DragenEnv
 
      String batch = basename(OutputDir)
      String StagingDir = "/staging/runs/MyeloSeqHD/"
@@ -213,7 +221,8 @@ task dragen_demux {
      >>>
 
      runtime {
-         docker_image: "seqfu/centos7-dragen-3.10.4:latest"
+         docker_image: DragenDockerImage
+         dragen_env: DragenEnv
          cpu: "20"
          memory: "200 G"
          queue: queue
@@ -252,7 +261,7 @@ task prepare_samples {
                  close SS;' > sample_sheet.txt
      >>>
      runtime {
-         docker_image: "registry.gsc.wustl.edu/genome/lims-compute-xenial:1"
+         docker_image: "docker1(registry.gsc.wustl.edu/genome/lims-compute-xenial:1)"
          cpu: "1"
          memory: "4 G"
          queue: queue
@@ -335,6 +344,8 @@ task dragen_align {
      String SubDir
      String jobGroup
      String queue
+     String DragenDockerImage
+     String? DragenEnv
 
      Int? TrimLen
      Int readfamilysize
@@ -355,13 +366,24 @@ task dragen_align {
 
          /bin/mkdir ${LocalSampleDir} && \
          /bin/mkdir ${outdir} && \
-         /opt/edico/bin/dragen -r ${DragenRef} --tumor-fastq1 ${fastq1} --tumor-fastq2 ${fastq2} --RGSM-tumor ${SM} --RGID-tumor ${RG} --RGLB-tumor ${LB} --enable-map-align true --enable-sort true --enable-map-align-output true --vc-enable-umi-liquid true --vc-combine-phased-variants-distance 3 --vc-enable-triallelic-filter false --gc-metrics-enable=true --qc-coverage-region-1 ${CoverageBed} --qc-coverage-reports-1 full_res --umi-enable true --umi-min-supporting-reads ${readfamilysize} --umi-correction-scheme=random --umi-enable-probability-model-merging=false --umi-fuzzy-window-size=0 --enable-variant-caller=true --vc-target-bed ${CoverageBed} --enable-sv true --sv-call-regions-bed ${CoverageBed} --sv-exome true --sv-output-contigs true --vc-somatic-hotspots ${Hotspot} --umi-metrics-interval-file ${CoverageBed} --read-trimmers=fixed-len --trim-r1-5prime=${default=1 TrimLen} --trim-r1-3prime=${default=1 TrimLen} --trim-r2-5prime=${default=1 TrimLen} --trim-r2-3prime=${default=1 TrimLen} --output-dir ${LocalSampleDir} --output-file-prefix ${Name} --output-format BAM &> ${log} && \
+         /opt/edico/bin/dragen -r ${DragenRef} --tumor-fastq1 ${fastq1} --tumor-fastq2 ${fastq2} --RGSM-tumor ${SM} --RGID-tumor ${RG} --RGLB-tumor ${LB} \
+         --umi-enable true --umi-min-supporting-reads ${readfamilysize}  --umi-enable-probability-model-merging=false \
+         --umi-correction-scheme=random --umi-fuzzy-window-size=0 --umi-metrics-interval-file ${CoverageBed} \
+         --read-trimmers=fixed-len --trim-r1-5prime=${default=1 TrimLen} --trim-r1-3prime=${default=1 TrimLen} \
+         --trim-r2-5prime=${default=1 TrimLen} --trim-r2-3prime=${default=1 TrimLen} \
+         --qc-coverage-region-1 ${CoverageBed} --qc-coverage-reports-1 full_res --qc-coverage-ignore-overlaps true \
+         --enable-map-align true --enable-sort true --enable-map-align-output true --gc-metrics-enable=true \
+         --enable-variant-caller=true --vc-enable-umi-liquid true --vc-target-bed ${CoverageBed} --vc-somatic-hotspots ${Hotspot} \
+         --vc-enable-triallelic-filter false --vc-combine-phased-variants-distance 3 \
+         --enable-sv true --sv-call-regions-bed ${CoverageBed} --sv-exome true --sv-output-contigs true \
+         --output-dir ${LocalSampleDir} --output-file-prefix ${Name} --output-format BAM &> ${log} && \
          /bin/mv ${log} ./ && \
          /bin/mv ${LocalSampleDir} ${dragen_outdir}
      }
 
      runtime {
-         docker_image: "seqfu/centos7-dragen-3.10.4:latest"
+         docker_image: DragenDockerImage
+         dragen_env: DragenEnv
          cpu: "20"
          memory: "200 G"
          queue: queue
@@ -393,7 +415,7 @@ task move_demux_fastq {
          fi
      }
      runtime {
-         docker_image: "ubuntu:xenial"
+         docker_image: "docker1(ubuntu:xenial)"
          queue: queue
          job_group: jobGroup
      }
@@ -417,7 +439,7 @@ task batch_qc {
          /usr/bin/perl ${QC_pl} ${BatchDir}
      }
      runtime {
-         docker_image: "registry.gsc.wustl.edu/mgi-cle/myeloseqhd:v2"
+         docker_image: "docker1(registry.gsc.wustl.edu/mgi-cle/myeloseqhd:v2)"
          memory: "4 G"
          queue: queue
          job_group: jobGroup
@@ -439,7 +461,7 @@ task remove_rundir {
          fi
      }
      runtime {
-         docker_image: "ubuntu:xenial"
+         docker_image: "docker1(ubuntu:xenial)"
          queue: queue
          job_group: jobGroup
      }
@@ -464,7 +486,7 @@ task data_transfer {
          fi
      }
      runtime {
-         docker_image: "registry.gsc.wustl.edu/dataxfer/data-transfer-helper"
+         docker_image: "docker1(registry.gsc.wustl.edu/dataxfer/data-transfer-helper)"
          memory: "8 G"
          queue: queue
          job_group: jobGroup
