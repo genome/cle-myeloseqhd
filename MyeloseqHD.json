@@ -9,7 +9,8 @@
     "MyeloseqHD.MinReads":5,
     "MyeloseqHD.MinVaf":0.02,
     "MyeloseqHD.VariantDB":"/storage1/fs1/gtac-mgi/Active/CLE/validation/cle_validation/CLE_variant_database/myeloseqhd/myeloseqhd_variants.sqlite",
+    "MyeloseqHD.MyeloSeqHDRepo":"/storage1/fs1/dspencer/Active/spencerlab/dhs/git/cle-myeloseqhd-2",
     "MyeloseqHD.DragenQueue":"duncavagee",
-    "MyeloseqHD.Queue":"pathology",
+    "MyeloseqHD.Queue":"dspencer",
     "MyeloseqHD.JobGroup":"/cle/wdl/haloplex"
 }
