@@ -9,12 +9,9 @@
     "MyeloseqHD.MinReads":5,
     "MyeloseqHD.MinVaf":0.02,
     "MyeloseqHD.VariantDB":"/storage1/fs1/gtac-mgi/Active/CLE/validation/cle_validation/CLE_variant_database/myeloseqhd/myeloseqhd_variants.sqlite",
-<<<<<<< HEAD
-    "MyeloseqHD.MyeloSeqHDRepo":"/storage1/fs1/dspencer/Active/spencerlab/dhs/git/cle-myeloseqhd-2",
-=======
-    "MyeloseqHD.DragenDockerImage":"docker1(seqfu/centos7-dragen-3.10.4:latest)",
->>>>>>> 6a4ce3f55ba8f6a45e39a11709d86480473a5eaf
-    "MyeloseqHD.DragenQueue":"duncavagee",
-    "MyeloseqHD.Queue":"dspencer",
+    "MyeloseqHD.DragenEnv":"LSF_DOCKER_DRAGEN=y",
+    "MyeloseqHD.DragenDockerImage":"gtac-mgi-dragen(seqfu/centos7-dragen-3.10.4:latest)",
+    "MyeloseqHD.DragenQueue":"gtac-mgi-dragen",
+    "MyeloseqHD.Queue":"pathology",
     "MyeloseqHD.JobGroup":"/cle/wdl/haloplex"
 }
