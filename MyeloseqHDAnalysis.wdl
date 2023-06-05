@@ -447,7 +447,7 @@ task make_report {
      String SampleOutDir = OutputDir + "/" + SubDir
 
      command {
-         /usr/bin/python3 ${MyeloSeqHDRepo}/scripts/make_hd_report.py -n ${Name} -d ${SampleOutDir} -c ${CoverageBed} -q ${QcMetrics} \
+         /usr/bin/python3 ${MyeloSeqHDRepo}/dockerfiles/docker-myeloseq/make_hd_report.py -n ${Name} -d ${SampleOutDir} -c ${CoverageBed} -q ${QcMetrics} \
          -m ${mrn} -a ${accession} -b ${DOB} -e ${exception} -i ${RunInfoString} && \
          /bin/mv ./*.report.txt ./*.report.json ${SampleOutDir}
      }
