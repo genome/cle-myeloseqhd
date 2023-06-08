@@ -35,7 +35,7 @@ my $zip  = File::Spec->join($git_dir, 'imports.zip');
 my $json_template = File::Spec->join($git_dir, 'MyeloseqHD.json');
 
 my $group  = '/cle/wdl/haloplex';
-my $queue  = 'pathology';
+my $queue  = 'dspencer';
 my $docker = 'registry.gsc.wustl.edu/apipe-builder/genome_perl_environment:compute1-20';
 
 my $user_group = 'compute-duncavagee';
