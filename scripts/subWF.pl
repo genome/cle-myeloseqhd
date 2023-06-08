@@ -83,6 +83,8 @@ for my $case_dir (glob("$dir/TW*"), glob("$dir/H_*")) {
     $inputs->{'MyeloseqHDAnalysis.DragenVcf'}      = $vcf;
     $inputs->{'MyeloseqHDAnalysis.DragenVcfIndex'} = $vcf_index;
 
+    $inputs->{'MyeloseqHDAnalysis.MyeloSeqHDRepo'} = $git_dir;
+
     $inputs->{'MyeloseqHDAnalysis.Name'}           = $case_name;
     $inputs->{'MyeloseqHDAnalysis.OutputDir'}      = $dir;
     $inputs->{'MyeloseqHDAnalysis.SubDir'}         = basename($case_dir);

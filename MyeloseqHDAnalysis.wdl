@@ -1,43 +1,49 @@
+version 1.0
+
 workflow MyeloseqHDAnalysis {
-    String Bam
-    String BamIndex
-    String DragenVcf
-    String DragenVcfIndex
-    String Name
 
-    String refFasta 
-    String ReferenceDict
-    String Vepcache
-    String VariantDB
+    input {
 
-    String CoverageBed
-    String HaplotectBed
-    String AmpliconBed
+        String Bam
+        String BamIndex
+        String DragenVcf
+        String DragenVcfIndex
+        String Name
 
-    String CustomAnnotationVcf
-    String CustomAnnotationIndex
-    String CustomAnnotationParameters
+        String refFasta 
+        String ReferenceDict
+        String Vepcache
+        String VariantDB
 
-    String? GenotypeVcf
+        String MyeloSeqHDRepo
 
-    Int MinReads
-    Float MinVaf
-    String QcMetrics
+        String HaplotectBed = MyeloSeqHDRepo + "/accessory_files/MyeloseqHD.haplotect.bed"
+        String AmpliconBed  = MyeloSeqHDRepo + "/accessory_files/MyeloseqHD.amplicons.bed"
+        String CoverageBed  = MyeloSeqHDRepo + "/accessory_files/MyeloseqHD.CoverageQC.hg38.bed"
+        String QcMetrics    = MyeloSeqHDRepo + "/accessory_files/MyeloseqHD.QCMetrics.json"
+        String CustomAnnotationVcf   = MyeloSeqHDRepo + "/accessory_files/MyeloseqHD.custom_annotations.vcf.gz"
+        String CustomAnnotationIndex = MyeloSeqHDRepo + "/accessory_files/MyeloseqHD.custom_annotations.vcf.gz.tbi"
+        String CustomAnnotationParameters = "MYELOSEQ,vcf,exact,0,TCGA_AC,MDS_AC,BLACKLIST"
 
-    String mrn
-    String all_mrn
-    String accession
-    String DOB
-    String sex
-    String exception
-    String RunInfoString
+        String? GenotypeVcf
+        Int MinReads
+        Float MinVaf
 
-    String SubDir
-    String OutputDir
+        String mrn
+        String all_mrn
+        String accession
+        String DOB
+        String sex
+        String exception
+        String RunInfoString
 
-    String Queue
-    String JobGroup 
+        String SubDir
+        String OutputDir
 
+        String Queue
+        String JobGroup 
+
+    }
 
     call query_DB {
         input: mrn=all_mrn,
@@ -67,7 +73,7 @@ workflow MyeloseqHDAnalysis {
                jobGroup=JobGroup
     }
 
-    call run_pindel_region as run_pindel_flt3itd {
+    call run_pindel_region {
         input: Cram=convert_bam.cram,
                CramIndex=convert_bam.crai,
                Reg=CoverageBed,
@@ -78,13 +84,13 @@ workflow MyeloseqHDAnalysis {
     }
 
     call bgzip_tabix as bgzip_tabix_pindel {
-        input: Vcf=run_pindel_flt3itd.vcf,
+        input: Vcf=run_pindel_region.vcf,
                Name=Name,
                queue=Queue,
                jobGroup=JobGroup
     }
 
-    call clean_variants as clean_pindel_itd {
+    call clean_variants as clean_pindel_region {
         input: Vcf=bgzip_tabix_pindel.vcf,
                Name=Name,
                refFasta=refFasta,
@@ -93,7 +99,7 @@ workflow MyeloseqHDAnalysis {
     }
 
     call combine_variants {
-        input: Vcfs=select_all([DragenVcf,clean_pindel_itd.cleaned_vcf_file,clean_queryDB_vcf.cleaned_vcf_file,GenotypeVcf]),
+        input: Vcfs=select_all([DragenVcf,clean_pindel_region.cleaned_vcf_file,clean_queryDB_vcf.cleaned_vcf_file,GenotypeVcf]),
                Cram=convert_bam.cram,
                CramIndex=convert_bam.crai,
                refFasta=refFasta,
@@ -160,6 +166,7 @@ workflow MyeloseqHDAnalysis {
                RunInfoString=RunInfoString,
                CoverageBed=CoverageBed,
                QcMetrics=QcMetrics,
+               MyeloSeqHDRepo=MyeloSeqHDRepo,
                OutputDir=OutputDir,
                SubDir=SubDir,
                queue=Queue,
@@ -173,27 +180,30 @@ workflow MyeloseqHDAnalysis {
 
 
 task convert_bam {
-     String Bam
-     String BamIndex
-     String Name
-     String refFasta
-     String AmpliconBed
-     String OutputDir
-     String SubDir
-     String jobGroup
-     String queue
 
-     String outdir = OutputDir + "/" + SubDir
+    input {
+        String Bam
+        String BamIndex
+        String Name
+        String refFasta
+        String AmpliconBed
+        String OutputDir
+        String SubDir
+        String jobGroup
+        String queue
+    }
+
+    String outdir = OutputDir + "/" + SubDir
 
      command <<<
-         /usr/local/bin/tagbam -v ${Bam} ${AmpliconBed} /tmp/tagged.bam > ${Name}.ampinfo.txt && \
-         /usr/local/bin/samtools view -T ${refFasta} -C -o "${Name}.cram" /tmp/tagged.bam && \
-         /usr/local/bin/samtools index "${Name}.cram" &&
-         (cut -f 5 ${Name}.ampinfo.txt && cut -f 4 ${AmpliconBed}) | sort | uniq -c | awk '!/\./ { print $2,$1-1; }' > ${Name}.ampcounts.txt && \
-         /bin/cp ${Name}.ampinfo.txt ${outdir} && \
-         /bin/cp ${Name}.ampcounts.txt ${outdir} && \
-         /bin/cp ${Name}.cram ${outdir} && \
-         /bin/cp ${Name}.cram.crai ${outdir}
+         /usr/local/bin/tagbam -v ~{Bam} ~{AmpliconBed} /tmp/tagged.bam > ~{Name}.ampinfo.txt && \
+         /usr/local/bin/samtools view -T ~{refFasta} -C -o "~{Name}.cram" /tmp/tagged.bam && \
+         /usr/local/bin/samtools index "~{Name}.cram" &&
+         (cut -f 5 ~{Name}.ampinfo.txt && cut -f 4 ~{AmpliconBed}) | sort | uniq -c | awk '!/\./ { print $2,$1-1; }' > ~{Name}.ampcounts.txt && \
+         /bin/cp ~{Name}.ampinfo.txt ~{outdir} && \
+         /bin/cp ~{Name}.ampcounts.txt ~{outdir} && \
+         /bin/cp ~{Name}.cram ~{outdir} && \
+         /bin/cp ~{Name}.cram.crai ~{outdir}
      >>>
 
      runtime {
@@ -213,22 +223,25 @@ task convert_bam {
 }
 
 task run_pindel_region {
-     File Cram
-     File CramIndex
-     String Reg
-     String? Genome
-     Int? Isize
-     Int? MinReads
-     String refFasta
-     String Name
-     String jobGroup
-     String queue
+
+    input {
+        File Cram
+        File CramIndex
+        String Reg
+        String? Genome
+        Int? Isize
+        Int? MinReads
+        String refFasta
+        String Name
+        String jobGroup
+        String queue
+    }
 
      command <<<
-         (set -eo pipefail && /usr/local/bin/samtools view -T ${refFasta} -ML ${Reg} ${Cram} | /opt/pindel-0.2.5b8/sam2pindel - /tmp/in.pindel ${default=250 Isize} tumor 0 Illumina-PairEnd) && \
-         /usr/local/bin/pindel -f ${refFasta} -p /tmp/in.pindel -j ${Reg} -o /tmp/out.pindel && \
-         /usr/local/bin/pindel2vcf -P /tmp/out.pindel -G -r ${refFasta} -e ${default=3 MinReads} -R ${default="GRCh38" Genome} -d ${default="GRCh38" Genome} -v /tmp/out.vcf && \
-         sed 's/END=[0-9]*;//' /tmp/out.vcf > ${Name}.pindel.vcf
+         (set -eo pipefail && /usr/local/bin/samtools view -T ~{refFasta} -ML ~{Reg} ~{Cram} | /opt/pindel-0.2.5b8/sam2pindel - /tmp/in.pindel ~{default=250 Isize} tumor 0 Illumina-PairEnd) && \
+         /usr/local/bin/pindel -f ~{refFasta} -p /tmp/in.pindel -j ~{Reg} -o /tmp/out.pindel && \
+         /usr/local/bin/pindel2vcf -P /tmp/out.pindel -G -r ~{refFasta} -e ~{default=3 MinReads} -R ~{default="GRCh38" Genome} -d ~{default="GRCh38" Genome} -v /tmp/out.vcf && \
+         sed 's/END=[0-9]*;//' /tmp/out.vcf > ~{Name}.pindel.vcf
      >>>
 
      runtime {
@@ -244,10 +257,12 @@ task run_pindel_region {
 }
 
 task bgzip_tabix {
-     String Vcf
-     String Name
-     String queue
-     String jobGroup
+    input{
+        String Vcf
+        String Name
+        String queue
+        String jobGroup
+    }
 
      command {
          /opt/htslib/bin/bgzip -c ${Vcf} > ${Name}.bgzip_tabix.vcf.gz && \
@@ -267,11 +282,13 @@ task bgzip_tabix {
 }
 
 task clean_variants {
-     String Vcf
-     String Name
-     String refFasta
-     String jobGroup
-     String queue
+    input{
+        String Vcf
+        String Name
+        String refFasta
+        String jobGroup
+        String queue
+    }
 
      command {
          /usr/local/bin/bcftools sort -Oz ${Vcf} | \
@@ -294,17 +311,19 @@ task clean_variants {
 }
 
 task combine_variants {
-     Array[String] Vcfs
-     String Cram
-     String CramIndex
-     String refFasta
-     String Name
-     String jobGroup
-     String queue
+    input{
+        Array[String] Vcfs
+        String Cram
+        String CramIndex
+        String refFasta
+        String Name
+        String jobGroup
+        String queue
 
-     Int? Reads
-     Int? MinReadsPerFamily
-     Float? Vaf
+        Int? Reads
+        Int? MinReadsPerFamily
+        Float? Vaf
+    }
 
      command {
          /usr/local/bin/bcftools merge -F x --force-samples -Oz ${sep=" " Vcfs} | /usr/local/bin/bcftools sort -Oz -o combined.vcf.gz && \
@@ -325,16 +344,18 @@ task combine_variants {
 }
 
 task run_vep {
-     File CombineVcf
-     String refFasta
-     String Vepcache
-     File CustomAnnotationVcf
-     File CustomAnnotationIndex
-     String CustomAnnotationParameters
-     Float? maxAF
-     String Name
-     String jobGroup
-     String queue
+    input{
+        File CombineVcf
+        String refFasta
+        String Vepcache
+        File CustomAnnotationVcf
+        File CustomAnnotationIndex
+        String CustomAnnotationParameters
+        Float? maxAF
+        String Name
+        String jobGroup
+        String queue
+    }
 
      command {
          if [ $(/bin/grep -v '^#' ${CombineVcf}|/usr/bin/wc -l) == 0 ]; then
@@ -367,25 +388,27 @@ task run_vep {
 }
 
 task run_haplotect {
-     String Cram
-     String CramIndex
-     String Bed
-     String Name
-     String refDict
-     String refFasta
-     String queue
-     String jobGroup
+    input{
+        String Cram
+        String CramIndex
+        String Bed
+        String Name
+        String refDict
+        String refFasta
+        String queue
+        String jobGroup
 
-     Int? MinReads
+        Int? MinReads
+    }
 
-     command <<<
-         /usr/bin/awk -v OFS="\t" '{ $2=$2-1; print; }' ${Bed} > /tmp/pos.bed && \
+    command <<<
+         /usr/bin/awk -v OFS="\t" '{ $2=$2-1; print; }' ~{Bed} > /tmp/pos.bed && \
          /usr/local/openjdk-8/bin/java -Xmx6g \
          -jar /opt/hall-lab/gatk-package-4.1.8.1-18-ge2f02f1-SNAPSHOT-local.jar Haplotect \
-         -I ${Cram} -R ${refFasta} --sequence-dictionary ${refDict} \
-         -mmq 20 -mbq 20 -max-depth-per-sample 10000 -gstol 0.001 -mr ${default=10 MinReads} \
-         -htp ${Bed} -L /tmp/pos.bed -outPrefix ${Name}
-     >>>
+         -I ~{Cram} -R ~{refFasta} --sequence-dictionary ~{refDict} \
+         -mmq 20 -mbq 20 -max-depth-per-sample 10000 -gstol 0.001 -mr ~{default=10 MinReads} \
+         -htp ~{Bed} -L /tmp/pos.bed -outPrefix ~{Name}
+    >>>
 
      runtime {
          docker_image: "docker1(registry.gsc.wustl.edu/mgi-cle/haplotect:0.3)"
@@ -401,27 +424,30 @@ task run_haplotect {
 }
 
 task make_report {
-     String order_by
-     String Name
-     String mrn
-     String accession
-     String DOB
-     String sex
-     String exception
-     String RunInfoString
-     String CoverageBed
-     String QcMetrics
-     String OutputDir
-     String SubDir
-     String jobGroup
-     String queue
+    input{
+        String order_by
+        String Name
+        String mrn
+        String accession
+        String DOB
+        String sex
+        String exception
+        String RunInfoString
+        String CoverageBed
+        String QcMetrics
+        String OutputDir
+        String SubDir
+        String MyeloSeqHDRepo
+        String jobGroup
+        String queue
 
-     Int? MinReadsPerFamily
+        Int? MinReadsPerFamily
+    }
 
      String SampleOutDir = OutputDir + "/" + SubDir
 
      command {
-         /usr/bin/python3 /usr/local/bin/make_hd_report.py -n ${Name} -d ${SampleOutDir} -c ${CoverageBed} -q ${QcMetrics} \
+         /usr/bin/python3 ${MyeloSeqHDRepo}/dockerfiles/docker-myeloseq/make_hd_report.py -n ${Name} -d ${SampleOutDir} -c ${CoverageBed} -q ${QcMetrics} \
          -m ${mrn} -a ${accession} -b ${DOB} -e ${exception} -i ${RunInfoString} && \
          /bin/mv ./*.report.txt ./*.report.json ${SampleOutDir}
      }
@@ -438,12 +464,14 @@ task make_report {
 }
 
 task gather_files {
-     String order_by
-     Array[String] OutputFiles
-     String OutputDir
-     String? SubDir
-     String jobGroup
-     String queue
+    input{
+        String order_by
+        Array[String] OutputFiles
+        String OutputDir
+        String? SubDir
+        String jobGroup
+        String queue
+    }
 
      command {
          if [[ ${SubDir} != "" ]] && [[ ! -e ${OutputDir}/${SubDir} ]]; then
@@ -462,13 +490,15 @@ task gather_files {
 }
 
 task upload_DB {
-     String Vcf
-     String mrn
-     String accession
-     String VariantDB
-     String CoverageBed
-     String jobGroup
-     String queue
+    input{
+        String Vcf
+        String mrn
+        String accession
+        String VariantDB
+        String CoverageBed
+        String jobGroup
+        String queue
+    }
 
      command {
          /usr/bin/python3 /usr/local/bin/variantDB.py -d ${VariantDB} -v ${Vcf} -c ${CoverageBed} -i ${mrn} -j ${accession}
@@ -485,11 +515,13 @@ task upload_DB {
 }
 
 task query_DB {
-     String mrn
-     String accession
-     String VariantDB
-     String jobGroup
-     String queue
+    input{
+        String mrn
+        String accession
+        String VariantDB
+        String jobGroup
+        String queue
+    }
 
      command {
          /usr/bin/python3 /usr/local/bin/variantDB.py -d ${VariantDB} -m ${mrn} -a ${accession}

@@ -256,9 +256,9 @@ print("Collecting coverage metrics...",file=sys.stderr)
 covQcBedPr = pr.PyRanges(pd.read_csv(caseinfo['covqcbedfile'], header=None, names="Chromosome Start End Exon Strand Gene len geneId transcriptId CdsStart CdsEnd transcriptPos Codon".split(), sep="\t"))
 fullResCovPr = pr.PyRanges(pd.read_csv(coveragemetrics, header=None, names="Chromosome Start End cov".split(), sep="\t"))
 
-totalTargetSpace = int(fullResCovPr.df[['Start','End']].diff(axis=1)[['End']].sum())
-fracCovLevel1 = int(fullResCovPr.df[(fullResCovPr.df['cov']>=covLevel1)][['Start','End']].diff(axis=1)[['End']].sum())/totalTargetSpace*100
-fracCovLevel2 = int(fullResCovPr.df[(fullResCovPr.df['cov']>=covLevel2)][['Start','End']].diff(axis=1)[['End']].sum())/totalTargetSpace*100
+totalTargetSpace = fullResCovPr.df[['Start','End']].diff(axis=1)[['End']].sum()[0]
+fracCovLevel1 = fullResCovPr.df[(fullResCovPr.df['cov']>=covLevel1)][['Start','End']].diff(axis=1)[['End']].sum()[0]/totalTargetSpace*100
+fracCovLevel2 = fullResCovPr.df[(fullResCovPr.df['cov']>=covLevel2)][['Start','End']].diff(axis=1)[['End']].sum()[0]/totalTargetSpace*100
 
 qcdf = pd.concat([qcdf,pd.DataFrame([{'metric':'COVERAGE SUMMARY: Target bases >'+str(covLevel1)+'x (%)','value':round(fracCovLevel1,1)}])])
 qcdf = pd.concat([qcdf,pd.DataFrame([{'metric':'COVERAGE SUMMARY: Target bases >'+str(covLevel2)+'x (%)','value':round(fracCovLevel2,1)}])])
@@ -290,12 +290,12 @@ df['len'] = df['len'].astype(int)
 assaygenelist = df[['Gene','geneId','transcriptId']].drop_duplicates()
 
 # exon qc
-exonqcdf = df.groupby(['Gene','Exon','len']).sum()[['tcov']].reset_index()
+exonqcdf = df.groupby(['Gene','Exon','len'])['tcov'].sum().reset_index()
 exonqcdf['Mean'] = exonqcdf['tcov']/exonqcdf['len']
-x = df[(df['cov']>=covLevel1)].groupby(['Gene','Exon','len']).sum().reset_index()
+x = df[(df['cov']>=covLevel1)].groupby(['Gene','Exon','len'])['nt'].sum().reset_index()
 x['covLevel1']= x.nt/x.len*100
 exonqcdf = pd.merge(exonqcdf,x[['Gene','Exon','len','covLevel1']],on=['Gene','Exon','len'],how='left')
-x = df[(df['cov']>=covLevel2)].groupby(['Gene','Exon','len']).sum().reset_index()
+x = df[(df['cov']>=covLevel2)].groupby(['Gene','Exon','len'])['nt'].sum().reset_index()
 x['covLevel2']= x.nt/x.len*100
 exonqcdf = pd.merge(exonqcdf,x[['Gene','Exon','len','covLevel2']],on=['Gene','Exon','len'],how='left')
 exonqcdf['Type'] = 'Exon'
@@ -306,13 +306,13 @@ covqcdf = pd.concat([covqcdf,exonqcdf[['Gene','Type','Region','Mean','covLevel1'
 
 # get Gene qc
 #
-geneqcdf = df[['Gene','Start','End','len']].drop_duplicates().groupby(['Gene']).sum()[['len']].reset_index()
-geneqcdf = pd.merge(geneqcdf,df.groupby(['Gene']).sum()[['tcov']].reset_index(),on=['Gene'],how='left')
+geneqcdf = df[['Gene','Start','End','len']].drop_duplicates().groupby(['Gene'])['len'].sum().reset_index()
+geneqcdf = pd.merge(geneqcdf,df.groupby(['Gene'])['tcov'].sum().reset_index(),on=['Gene'],how='left')
 geneqcdf['Mean'] = geneqcdf['tcov']/geneqcdf['len']
-geneqcdf = pd.merge(geneqcdf,df[(df['cov']>=covLevel1)].groupby(['Gene']).sum().reset_index(),on=['Gene'],how='left',suffixes=['','_y'])
+geneqcdf = pd.merge(geneqcdf,df[(df['cov']>=covLevel1)].groupby(['Gene'])['nt'].sum().reset_index(),on=['Gene'],how='left',suffixes=['','_y'])
 geneqcdf['covLevel1'] = geneqcdf['nt']/geneqcdf['len']*100
 geneqcdf = geneqcdf[['Gene','len','Mean','covLevel1']]
-geneqcdf = pd.merge(geneqcdf,df[(df['cov']>=covLevel2)].groupby(['Gene']).sum().reset_index(),on=['Gene'],how='left',suffixes=['','_y'])
+geneqcdf = pd.merge(geneqcdf,df[(df['cov']>=covLevel2)].groupby(['Gene'])['nt'].sum().reset_index(),on=['Gene'],how='left',suffixes=['','_y'])
 geneqcdf['covLevel2'] = geneqcdf['nt']/geneqcdf['len']*100
 geneqcdf = geneqcdf[['Gene','len','Mean','covLevel1','covLevel2']]
 geneqcdf['Type'] = 'Gene'
@@ -362,7 +362,7 @@ vcf = VCF(vcffile)
 # get VEP fields
 vep = {}
 i = 0
-for j in vcf.get_header_type('CSQ')['Description'].split("|"):
+for j in vcf.get_header_type('CSQ')['Description'].strip('"').split("|"):
     vep[j] = i
     i+=1
 
@@ -447,6 +447,9 @@ for variant in vcf:
 
             if csq[vep['MYELOSEQ_TCGA_AC']] or csq[vep['MYELOSEQ_MDS_AC']]:
                 customannotation = 'AMLTCGA=' + str(csq[vep['MYELOSEQ_TCGA_AC']] or 0) + '&' + 'MDS=' + str(csq[vep['MYELOSEQ_MDS_AC']] or 0)
+
+            if csq[vep['MYELOSEQ_BLACKLIST']] and csq[vep['MYELOSEQ_BLACKLIST']]!='':
+                varfilter = "BLACKLIST"
 
     priorvariants = 'NA'
     # get information about prior variants
