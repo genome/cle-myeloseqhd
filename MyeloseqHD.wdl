@@ -9,15 +9,10 @@ workflow MyeloseqHD {
         File SampleSheet
         # sample sheet has this structure:
         # index  name  RG_ID  RG_FLOWCELL  RG_LANE  RG_LIB  RG_SAMPLE MRN ALL_MRNs ACCESSION DOB SEX EXCEPTION [R1] [R2]
-    
-<<<<<<< HEAD
+
         File? DemuxSampleSheet
         String? IlluminaDir
-=======
-    File? DemuxSampleSheet
-    String? IlluminaDir
-    String? DragenEnv
->>>>>>> 6a4ce3f55ba8f6a45e39a11709d86480473a5eaf
+        String? DragenEnv
 
         String JobGroup
         String OutputDir
@@ -26,16 +21,10 @@ workflow MyeloseqHD {
         Boolean DataTransfer
         String? CasesExcluded
 
-<<<<<<< HEAD
         String Queue
         String DragenQueue
+        String DragenDockerImage
         String VariantDB
-=======
-    String Queue
-    String DragenQueue
-    String DragenDockerImage
-    String VariantDB
->>>>>>> 6a4ce3f55ba8f6a45e39a11709d86480473a5eaf
 
         Int MinReads
         Float MinVaf
@@ -43,13 +32,12 @@ workflow MyeloseqHD {
 
         Array[String] Adapters = ["GATCGGAAGAGCACACGTCTGAACTCCAGTCAC","AGATCGGAAGAGCGTCGTGTAGGGAAA"]
 
-        String DragenReference = "/staging/runs/Chromoseq/refdata/dragen_hg38"
+        String DragenReference = "/storage1/fs1/gtac-mgi/Active/CLE/reference/dragen_hg38"
         String Reference       = "/storage1/fs1/duncavagee/Active/SEQ/Chromoseq/process/refdata/hg38/all_sequences.fa"
         String ReferenceDict   = "/storage1/fs1/duncavagee/Active/SEQ/Chromoseq/process/refdata/hg38/all_sequences.dict"
         String VEP             = "/storage1/fs1/gtac-mgi/Active/CLE/reference/VEP_cache"
 
         String MyeloSeqHDRepo
-
     }
 
     String HaplotectBed = MyeloSeqHDRepo + "/accessory_files/MyeloseqHD.haplotect.bed"
@@ -58,6 +46,7 @@ workflow MyeloseqHD {
     String GenotypeVcf  = MyeloSeqHDRepo + "/accessory_files/MyeloseqHD.forcegenotype.vcf.gz"
     String QcMetrics    = MyeloSeqHDRepo + "/accessory_files/MyeloseqHD.QCMetrics.json"
     String Hotspot      = MyeloSeqHDRepo + "/accessory_files/MyeloseqHD.hotspots.vcf.gz"
+
     String CustomAnnotationVcf   = MyeloSeqHDRepo + "/accessory_files/MyeloseqHD.custom_annotations.vcf.gz"
     String CustomAnnotationIndex = MyeloSeqHDRepo + "/accessory_files/MyeloseqHD.custom_annotations.vcf.gz.tbi"
     String CustomAnnotationParameters = "MYELOSEQ,vcf,exact,0,TCGA_AC,MDS_AC,BLACKLIST"
@@ -104,27 +93,6 @@ workflow MyeloseqHD {
           }
         }
 
-<<<<<<< HEAD
-=======
-        if (defined(DemuxSampleSheet)){
-          call copy_reads {
-              input: Read1=samples[13],
-              Read2=samples[14],
-              Name=samples[1],
-              queue=DragenQueue,
-              jobGroup=JobGroup
-          }
-        }
-
-        call trim_ends {
-              input: Read1=select_first([trim_adapters.read1,copy_reads.read1]),
-              Read2=select_first([trim_adapters.read2,copy_reads.read2]),
-              Name=samples[1],
-              queue=Queue,
-              jobGroup=JobGroup
-        }
-
->>>>>>> 6a4ce3f55ba8f6a45e39a11709d86480473a5eaf
         call dragen_align {
             input: DragenRef=DragenReference,
                    Hotspot=Hotspot,
@@ -144,7 +112,6 @@ workflow MyeloseqHD {
                    queue=DragenQueue,
                    jobGroup=JobGroup
         }
-
 
         call subWF.MyeloseqHDAnalysis {
             input: Bam=dragen_align.bam,
@@ -173,6 +140,7 @@ workflow MyeloseqHD {
                    MinVaf=MinVaf,
                    HaplotectBed=HaplotectBed,
                    QcMetrics=QcMetrics,
+                   MyeloSeqHDRepo=MyeloSeqHDRepo,
                    OutputDir=OutputDir,
                    SubDir=samples[1] + '_' + samples[0],
                    Queue=Queue,
@@ -219,24 +187,16 @@ workflow MyeloseqHD {
 
 
 task dragen_demux {
-<<<<<<< HEAD
-    input {
-        String? Dir
-        String OutputDir
-        String? SampleSheet
-        String jobGroup
-        String queue
-    }
-=======
-     String Dir
-     String OutputDir
-     String SampleSheet
-     String jobGroup
-     String queue
-     String DragenDockerImage
-     String? DragenEnv
+     input {
+         String? Dir
+         String? SampleSheet
+         String? DragenEnv
+         String OutputDir
+         String jobGroup
+         String queue
+         String DragenDockerImage
+     }
 
->>>>>>> 6a4ce3f55ba8f6a45e39a11709d86480473a5eaf
      String batch = basename(OutputDir)
      String StagingDir = "/staging/runs/MyeloSeqHD/"
      String LocalFastqDir = StagingDir + "demux_fastq/" + batch
@@ -267,7 +227,6 @@ task dragen_demux {
          cpu: "20"
          memory: "200 G"
          queue: queue
-#        host: "compute1-dragen-3"
          job_group: jobGroup 
      }
      output {
@@ -277,13 +236,13 @@ task dragen_demux {
 }
 
 task prepare_samples {
-    input {
-     File SampleSheet
-     String Fastq1
-     String Fastq2
-     String jobGroup
-     String queue
-    }
+     input {
+         File SampleSheet
+         String Fastq1
+         String Fastq2
+         String jobGroup
+         String queue
+     }
 
      command <<<
              /bin/cp ${Fastq1} 1.tmp.txt
@@ -316,28 +275,28 @@ task prepare_samples {
 }
 
 task trim_adapters {
-    input{
-        String Read1
-        String Read2
-        Array[String] Adapters
-        String Name
-        String jobGroup
-        String queue
-    }
+     input{
+         String Read1
+         String Read2
+         Array[String] Adapters
+         String Name
+         String jobGroup
+         String queue
+     }
      command {
         if [[ "${Read1}" == *"_R1_001"* ]]; then
              /bin/cp ${Read1} ${Name}.1.fastq.gz && \
              /bin/cp ${Read2} ${Name}.2.fastq.gz
         else
-            fastp -w 4 -i ${Read1} --adapter_sequence ${Adapters[0]} -o ${Name}.1.fastq.gz \
-            -I ${Read2} --adapter_sequence_r2 ${Adapters[1]} -O ${Name}.2.fastq.gz
+             export PYTHONPATH=/opt/cutadapt/lib/python2.7/site-packages/ && \
+             /opt/cutadapt/bin/cutadapt -a ${Adapters[0]} -A ${Adapters[1]} -o ${Name}.1.fastq.gz -p ${Name}.2.fastq.gz ${Read1} ${Read2}
         fi
      }
 
      runtime {
-         docker_image: "docker1(dhspence/docker-fastp)"
-         cpu: "4"
-         memory: "32 G"
+         docker_image: "docker1(registry.gsc.wustl.edu/fdu/cutadapt:1)"
+         cpu: "1"
+         memory: "8 G"
          queue: queue
          job_group: jobGroup
      }
@@ -347,100 +306,29 @@ task trim_adapters {
      }
 }
 
-<<<<<<< HEAD
 task dragen_align {
-    input{
-        String Name
-        String DragenRef
-        String Hotspot
-        String fastq1
-        String fastq2
-        String RG
-        String SM
-        String LB
-        String AmpliconBed
-        String CoverageBed
-        String OutputDir
-        String SubDir
-        String jobGroup
-        String queue
+     input{
+         String Name
+         String DragenRef
+         String Hotspot
+         String fastq1
+         String fastq2
+         String RG
+         String SM
+         String LB
+         String AmpliconBed
+         String CoverageBed
+         String OutputDir
+         String SubDir
+         String jobGroup
+         String queue
+         String DragenDockerImage
+         String? DragenEnv
 
-        Int? TrimLen
-        Int readfamilysize
-    }
-    
-=======
-task copy_reads {
-     String Read1
-     String Read2
-     String Name
-     String jobGroup
-     String queue
-
-     command {
-        /bin/cp ${Read1} ${Name}.demux.1.fastq.gz && \
-        /bin/cp ${Read2} ${Name}.demux.2.fastq.gz
+         Int? TrimLen
+         Int readfamilysize
      }
 
-     runtime {
-         docker_image: "docker1(ubuntu:xenial)"
-         queue: queue
-         job_group: jobGroup
-     }
-     output {
-         File read1 = "${Name}.demux.1.fastq.gz"
-         File read2 = "${Name}.demux.2.fastq.gz"
-     }
-}
-
-task trim_ends {
-     String Read1
-     String Read2
-     String Name
-     String jobGroup
-     String queue
-
-     command {
-        fastp -w 4 -i ${Read1} --trim_front1 1 --trim_tail1 1 -o ${Name}.1.fastq.gz \
-        -I ${Read2} --trim_front2 1 --trim_tail2 1 -O ${Name}.2.fastq.gz
-     }
-
-     runtime {
-         docker_image: "docker1(dhspence/docker-fastp)"
-         cpu: "4"
-         memory: "32 G"
-         queue: queue
-         job_group: jobGroup
-     }
-     output {
-         File read1 = "${Name}.1.fastq.gz"
-         File read2 = "${Name}.2.fastq.gz"
-     }
-}
-
-
-task dragen_align {
-     String Name
-     String DragenRef
-     String Hotspot
-     String fastq1
-     String fastq2
-     String RG
-     String SM
-     String LB
-     String AmpliconBed
-     String CoverageBed
-     String OutputDir
-     String SubDir
-     String jobGroup
-     String queue
-     String DragenDockerImage
-     String? DragenEnv
-
-     Int? TrimLen
-     Int readfamilysize
-
->>>>>>> 6a4ce3f55ba8f6a45e39a11709d86480473a5eaf
      String batch = basename(OutputDir)
      String StagingDir = "/staging/runs/MyeloSeqHD/"
      String LocalAlignDir = StagingDir + "align/" + batch
@@ -476,7 +364,6 @@ task dragen_align {
          cpu: "20"
          memory: "200 G"
          queue: queue
-#        host: "compute1-dragen-3"
          job_group: jobGroup 
      }
 
@@ -490,13 +377,13 @@ task dragen_align {
 
 
 task move_demux_fastq {
-    input{
-        Array[String] order_by
-        String Batch
-        String DemuxFastqDir
-        String queue
-        String jobGroup
-    }
+     input{
+         Array[String] order_by
+         String Batch
+         String DemuxFastqDir
+         String queue
+         String jobGroup
+     }
 
      String LocalDemuxFastqDir = "/staging/runs/MyeloSeqHD/demux_fastq/" + Batch
 
@@ -516,13 +403,13 @@ task move_demux_fastq {
 }
 
 task batch_qc {
-    input {
-        Array[String] order_by
-        String BatchDir
-        String QC_pl
-        String queue
-        String jobGroup
-    }
+     input {
+         Array[String] order_by
+         String BatchDir
+         String QC_pl
+         String queue
+         String jobGroup
+     }
      command {
          if [ -n "$(/bin/ls -d ${BatchDir}/TW*)" ]; then
              /bin/chmod -R 777 ${BatchDir}/TW*
@@ -542,12 +429,12 @@ task batch_qc {
 }
 
 task remove_rundir {
-    input {
-        Array[String] order_by
-        String? rundir
-        String queue
-        String jobGroup
-    }
+     input {
+         Array[String] order_by
+         String? rundir
+         String queue
+         String jobGroup
+     }
      command {
          if [ -d "${rundir}" ]; then
              /bin/rm -Rf ${rundir}
@@ -564,14 +451,14 @@ task remove_rundir {
 }
 
 task data_transfer {
-    input {
-        String order_by
-        String BatchDir
-        String xfer_pl
-        String queue
-        String jobGroup
-        String? excluded
-    }
+     input {
+         String order_by
+         String BatchDir
+         String xfer_pl
+         String queue
+         String jobGroup
+         String? excluded
+     }
      command {
          if [ -n "${excluded}" ]; then
              /usr/bin/perl ${xfer_pl} ${BatchDir} ${excluded}
