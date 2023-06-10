@@ -189,7 +189,7 @@ workflow MyeloseqHD {
 task dragen_demux {
      input {
          String? Dir
-         String? SampleSheet
+         File? SampleSheet
          String? DragenEnv
          String OutputDir
          String jobGroup
@@ -205,7 +205,7 @@ task dragen_demux {
      String log = StagingDir + "log/" + batch + "_demux.log"
      String DemuxReportDir = OutputDir + "/dragen_demux_reports"
 
-     command <<<
+     command {
          /bin/cp ${SampleSheet} ${LocalSampleSheet} && \
          /opt/edico/bin/dragen --bcl-conversion-only true --bcl-only-matched-reads true --strict-mode true --sample-sheet ${LocalSampleSheet} --bcl-input-directory ${Dir} --output-directory ${LocalFastqDir} &> ${log} && \
          /bin/ls ${LocalFastqDir}/*_R1_001.fastq.gz > Read1_list.txt && \
@@ -218,8 +218,7 @@ task dragen_demux {
              echo 'demux fastq size checking failed !' && \
              exit 1
          fi
-
-     >>>
+     }
 
      runtime {
          docker_image: DragenDockerImage
@@ -245,13 +244,13 @@ task prepare_samples {
      }
 
      command <<<
-             /bin/cp ${Fastq1} 1.tmp.txt
-             /bin/cp ${Fastq2} 2.tmp.txt
+             /bin/cp ~{Fastq1} 1.tmp.txt
+             /bin/cp ~{Fastq2} 2.tmp.txt
              /usr/bin/perl -e 'open(R1,"1.tmp.txt"); @r1 = <R1>; \
                  chomp @r1; close R1;\
                  open(R2,"2.tmp.txt"); @r2 = <R2>; \
                  chomp @r2; close R2; \
-                 open(SS,"${SampleSheet}");
+                 open(SS,"~{SampleSheet}");
                  while(<SS>){
                      chomp;
                      my @l = split("\t",$_);
