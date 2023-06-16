@@ -88,7 +88,7 @@ for my $row ($sheet->rows()) {
     #my $id = $lib =~ /^H_|Research/ ? 'NONE' : $mrn.'_'.$accession;
     my $id = ($exception and $exception =~ /RESEQ|RESEARCH|NOTRANSFER/) ? 'NONE' : $mrn.'_'.$accession;
 
-    ($sample) = $lib =~ /^(\S+)\-lib/ if $lib =~ /^H_|Research|Positive\-Control/;
+    ($sample) = $lib =~ /^(\S+)\-lib/ if $lib =~ /^H_|Research|Clinical|Positive\-Control/;
 
     unless ($id eq 'NONE') {
         unless ($mrn and $accession) {
@@ -154,9 +154,9 @@ my $dragen_ss  = File::Spec->join($out_dir, 'demux_sample_sheet.csv');
 my $ss_fh = IO::File->new(">$dragen_ss") or die "Fail to write to $dragen_ss";
 $ss_fh->print("[Settings]\n");
 $ss_fh->print("AdapterBehavior,trim\n");
-$ss_fh->print("AdapterRead1,GATCGGAAGAGCACACGTCTGAACTCCAGTCAC\n");
-$ss_fh->print("AdapterRead2,AGATCGGAAGAGCGTCGTGTAGGGAAA\n");
-$ss_fh->print("OverrideCycles,Y151;I8N2;U10;Y151\n");
+$ss_fh->print("AdapterRead1,AAGATCGGAAGAGCACACGTCTGAACTCC+CAGATCGGAAGAGCACACGTCTGAACTCC+GAGATCGGAAGAGCACACGTCTGAACTCC+TAGATCGGAAGAGCACACGTCTGAACTCC\n");
+$ss_fh->print("AdapterRead2,AAAGATCGGAAGAGCGTCGTGTAGGGAAA+CAAGATCGGAAGAGCGTCGTGTAGGGAAA+GAAGATCGGAAGAGCGTCGTGTAGGGAAA+TAAGATCGGAAGAGCGTCGTGTAGGGAAA\n");
+$ss_fh->print("OverrideCycles,N1Y150;I8N2;U10;N1Y150\n");
 $ss_fh->print("[Data]\n");
 $ss_fh->print("Lane,Sample_ID,Sample_Name,Sample_Project,index,index2\n");
 $ss_fh->print($ds_str);
