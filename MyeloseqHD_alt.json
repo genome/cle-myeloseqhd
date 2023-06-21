@@ -9,7 +9,7 @@
     "MyeloseqHD.MinReads":5,
     "MyeloseqHD.MinVaf":0.02,
     "MyeloseqHD.VariantDB":"/storage1/fs1/gtac-mgi/Active/CLE/validation/cle_validation/CLE_variant_database/myeloseqhd/myeloseqhd_variants.sqlite",
-    "MyeloseqHD.MyeloSeqHDRepo":"/storage1/fs1/dspencer/Active/spencerlab/dhs/git/cle-myeloseqhd-2",
+    "MyeloseqHD.MyeloSeqHDRepo":"/storage1/fs1/duncavagee/Active/SEQ/MyeloSeqHD/process/git/cle-myeloseqhd",
     "MyeloseqHD.DragenEnv":"LSF_DOCKER_DRAGEN=y",
     "MyeloseqHD.DragenDockerImage":"gtac-mgi-dragen(seqfu/oracle8-dragen-4.0.3:latest)",
     "MyeloseqHD.DragenQueue":"dragen",
