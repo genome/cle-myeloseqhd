@@ -242,7 +242,7 @@ for vline in vcffile.fetch(reopen=True):
 
      # first determine the callers that identified the variant
     callers = []
-    if 'hotspot' in vline.info.keys():
+    if 'FractionInformativeReads' in vline.info.keys(): # this means it was called by Dragen
         callers.append('dragen')
 
     if 'HOMLEN' in vline.info.keys():
@@ -502,8 +502,8 @@ for vline in vcffile.fetch(reopen=True):
 
         nrec = vcffile.new_record()
 
-        # if dragen is the only caller then use those counts and the filter flag        
-        if len(callers)==1 and callers[0]=='dragen':
+        # if dragen called this variant then use those counts and the existing filter flag        
+        if 'dragen' in callers:
 
             ro = rec.samples[0]['AD'][0]
             ao = rec.samples[0]['AD'][1]
