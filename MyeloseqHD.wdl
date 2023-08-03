@@ -51,7 +51,7 @@ workflow MyeloseqHD {
     String CustomAnnotationIndex = MyeloSeqHDRepo + "/accessory_files/MyeloseqHD.custom_annotations.vcf.gz.tbi"
     String CustomAnnotationParameters = "MYELOSEQ,vcf,exact,0,TCGA_AC,MDS_AC,BLACKLIST"
 
-    String QC_pl   = "/usr/local/bin/QC_metrics.pl"
+    String QC_pl   = MyeloSeqHDRepo + "/dockerfiles/docker-myeloseq/QC_metrics.pl"
     String xfer_pl = MyeloSeqHDRepo + "/scripts/data_transfer.pl"
 
     String DemuxFastqDir = "/storage1/fs1/gtac-mgi/Active/CLE/assay/myeloseqhd/demux_fastq"
