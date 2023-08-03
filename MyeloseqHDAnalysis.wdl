@@ -106,6 +106,7 @@ workflow MyeloseqHDAnalysis {
                Vaf=MinVaf,
                Reads=MinReads,
                Name=Name,
+               MyeloSeqHDRepo=MyeloSeqHDRepo,
                queue=Queue,
                jobGroup=JobGroup
     }
@@ -313,6 +314,7 @@ task clean_variants {
 task combine_variants {
     input{
         Array[String] Vcfs
+        String MyeloSeqHDRepo
         String Cram
         String CramIndex
         String refFasta
@@ -328,7 +330,7 @@ task combine_variants {
      command {
          /usr/local/bin/bcftools merge -F x -m none --force-samples -Oz ${sep=" " Vcfs} | /usr/local/bin/bcftools sort -Oz -o combined.vcf.gz && \
          /usr/bin/tabix -p vcf combined.vcf.gz && \
-         /usr/bin/python3 /home/fdu/git/cle-myeloseqhd/dockerfiles/docker-myeloseq/filterHaloplex.py -r ${refFasta} --minreadsperfamily ${default='3' MinReadsPerFamily} -m ${default='5' Reads} -d ${default='0.02' Vaf} combined.vcf.gz ${Cram} ${Name} > ${Name}.combined_and_tagged.vcf
+         /usr/bin/python3 ${MyeloSeqHDRepo}/dockerfiles/docker-myeloseq/filterHaloplex.py -r ${refFasta} --minreadsperfamily ${default='3' MinReadsPerFamily} -m ${default='5' Reads} -d ${default='0.02' Vaf} combined.vcf.gz ${Cram} ${Name} > ${Name}.combined_and_tagged.vcf
      }
 
      runtime {

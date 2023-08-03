@@ -149,25 +149,6 @@ for my $row ($sheet->rows()) {
     $seq_id++;
 }
 
-## DRAGEN sample sheet
-my $dragen_ss  = File::Spec->join($out_dir, 'demux_sample_sheet.csv'); 
-my $ss_fh = IO::File->new(">$dragen_ss") or die "Fail to write to $dragen_ss";
-$ss_fh->print("[Settings]\n");
-$ss_fh->print("AdapterBehavior,trim\n");
-$ss_fh->print("AdapterRead1,AAGATCGGAAGAGCACACGTCTGAACTCC+CAGATCGGAAGAGCACACGTCTGAACTCC+GAGATCGGAAGAGCACACGTCTGAACTCC+TAGATCGGAAGAGCACACGTCTGAACTCC\n");
-$ss_fh->print("AdapterRead2,AAAGATCGGAAGAGCGTCGTGTAGGGAAA+CAAGATCGGAAGAGCGTCGTGTAGGGAAA+GAAGATCGGAAGAGCGTCGTGTAGGGAAA+TAAGATCGGAAGAGCGTCGTGTAGGGAAA\n");
-$ss_fh->print("OverrideCycles,N1Y150;I8N2;U10;N1Y150\n");
-$ss_fh->print("[Data]\n");
-$ss_fh->print("Lane,Sample_ID,Sample_Name,Sample_Project,index,index2\n");
-$ss_fh->print($ds_str);
-$ss_fh->close;
-
-## Sample Index
-my $si = File::Spec->join($out_dir, 'sample_index');
-my $si_fh = IO::File->new(">$si") or die "Fail to write to $si";
-$si_fh->print($si_str);
-$si_fh->close;
-
 ## Get RunInfoString
 my $run_xml = File::Spec->join($rundir, 'RunParameters.xml');
 unless (-s $run_xml) {
@@ -206,6 +187,36 @@ while (my $line = $xml_fh->getline) {
     }
 }
 $xml_fh->close;
+
+## DRAGEN sample sheet
+my $num_N;
+if ($index1cycle == 19) {
+    $num_N = 11;
+}
+elsif ($index1cycle == 10) {
+    $num_N = 2;
+}
+else {
+    die "Invalid index1cycle $index1cycle";
+}
+
+my $dragen_ss  = File::Spec->join($out_dir, 'demux_sample_sheet.csv');
+my $ss_fh = IO::File->new(">$dragen_ss") or die "Fail to write to $dragen_ss";
+$ss_fh->print("[Settings]\n");
+$ss_fh->print("AdapterBehavior,trim\n");
+$ss_fh->print("AdapterRead1,AAGATCGGAAGAGCACACGTCTGAACTCC+CAGATCGGAAGAGCACACGTCTGAACTCC+GAGATCGGAAGAGCACACGTCTGAACTCC+TAGATCGGAAGAGCACACGTCTGAACTCC\n");
+$ss_fh->print("AdapterRead2,AAAGATCGGAAGAGCGTCGTGTAGGGAAA+CAAGATCGGAAGAGCGTCGTGTAGGGAAA+GAAGATCGGAAGAGCGTCGTGTAGGGAAA+TAAGATCGGAAGAGCGTCGTGTAGGGAAA\n");
+$ss_fh->print('OverrideCycles,N1Y150;I8N'.$num_N.";U10;N1Y150\n");
+$ss_fh->print("[Data]\n");
+$ss_fh->print("Lane,Sample_ID,Sample_Name,Sample_Project,index,index2\n");
+$ss_fh->print($ds_str);
+$ss_fh->close;
+
+## Sample Index
+my $si = File::Spec->join($out_dir, 'sample_index');
+my $si_fh = IO::File->new(">$si") or die "Fail to write to $si";
+$si_fh->print($si_str);
+$si_fh->close;
 
 my $run_info_str = join ',', $runid, $instr, $side, $fcmode, $wftype, $R1cycle, $index1cycle, $index2cycle, $R2cycle; 
 
