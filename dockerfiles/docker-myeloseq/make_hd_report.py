@@ -394,7 +394,7 @@ for variant in vcf:
     if variant.FILTER is not None:
         varfilter = variant.FILTER
 
-    abundance = round(variant.format('VAF')[0][0] * 100,2)
+    abundance = round(variant.format('VAF')[0][0] * 100,4)
     tamp = variant.format('TAMP')[0][0]
     samp = variant.format('SAMP')[0][0]
 
