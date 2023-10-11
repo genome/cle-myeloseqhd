@@ -443,10 +443,6 @@ for vline in vcffile.fetch(reopen=True):
         # total depth
         dp = passing['names'].drop_duplicates().shape[0]
 
-        # if the variant does exist in the database and there are fewer than minreads or the variant wasnt called then set minreads to 0 because <minreads is below the validated threshold.
-        if (ao < minreads or len(callers)==0) and 'MyeloSeqHDDB' in rec.info.keys():
-            ao = 0
-
         # total amplicons
         totalamplicons = passing[['names','amplicons']].drop_duplicates()["amplicons"].cat.remove_unused_categories().value_counts().count()
 
@@ -507,7 +503,7 @@ for vline in vcffile.fetch(reopen=True):
 
             ro = rec.samples[0]['AD'][0]
             ao = rec.samples[0]['AD'][1]
-            rawvaf = rec.samples[0]['AF'][0]
+            rawvaf = round(ao / (ao + ro),4) #rec.samples[0]['AF'][0]
             for v in rec.filter.keys():
                 nrec.filter.add(v) 
 
@@ -529,6 +525,11 @@ for vline in vcffile.fetch(reopen=True):
                 if readdat[(readdat["readquals"]=='pass')].shape[0] / readdat.shape[0] < minhqreads:
                     nrec.filter.add("LowQualReads")
 
+        # if the variant does exist in the database and there are fewer than minreads or the variant wasnt called then set minreads to 0 because <minreads is below the validated threshold.
+        if (ao < minreads or len(callers)==0) and 'MyeloSeqHDDB' in rec.info.keys():
+            ao = 0
+            rawvaf = round(ao / (ao + ro),4)
+
         # min vaf filter
         if rawvaf < minvaf:
             nrec.filter.add("LowVAF")
@@ -538,7 +539,7 @@ for vline in vcffile.fetch(reopen=True):
 
         # dont even print variants with <minreads and the variant has no previous records from the database (indicated by the 'MyeloSeqHDDB' info field)
         if ao < minreads and 'MyeloSeqHDDB' not in rec.info.keys() and 'MyeloSeqHDForceGT' not in rec.info.keys():
-            continue       
+            continue
 
         # otherwise, continue and print variant
 
