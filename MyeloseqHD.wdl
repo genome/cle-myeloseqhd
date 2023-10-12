@@ -40,16 +40,8 @@ workflow MyeloseqHD {
         String MyeloSeqHDRepo
     }
 
-    String HaplotectBed = MyeloSeqHDRepo + "/accessory_files/MyeloseqHD.haplotect.bed"
-    String AmpliconBed  = MyeloSeqHDRepo + "/accessory_files/MyeloseqHD.amplicons.bed"
-    String CoverageBed  = MyeloSeqHDRepo + "/accessory_files/MyeloseqHD.CoverageQC.hg38.bed"
-    String GenotypeVcf  = MyeloSeqHDRepo + "/accessory_files/MyeloseqHD.forcegenotype.vcf.gz"
-    String QcMetrics    = MyeloSeqHDRepo + "/accessory_files/MyeloseqHD.QCMetrics.json"
-    String Hotspot      = MyeloSeqHDRepo + "/accessory_files/MyeloseqHD.hotspots.vcf.gz"
-
-    String CustomAnnotationVcf   = MyeloSeqHDRepo + "/accessory_files/MyeloseqHD.custom_annotations.vcf.gz"
-    String CustomAnnotationIndex = MyeloSeqHDRepo + "/accessory_files/MyeloseqHD.custom_annotations.vcf.gz.tbi"
-    String CustomAnnotationParameters = "MYELOSEQ,vcf,exact,0,TCGA_AC,MDS_AC,BLACKLIST"
+    String CoverageBed = MyeloSeqHDRepo + "/accessory_files/MyeloseqHD.CoverageQC.hg38.bed"
+    String Hotspot     = MyeloSeqHDRepo + "/accessory_files/MyeloseqHD.hotspots.vcf.gz"
 
     String QC_pl   = MyeloSeqHDRepo + "/dockerfiles/docker-myeloseq/QC_metrics.pl"
     String xfer_pl = MyeloSeqHDRepo + "/scripts/data_transfer.pl"
@@ -103,7 +95,6 @@ workflow MyeloseqHD {
                    SM=samples[6],
                    LB=samples[5] + '.' + samples[0],
                    readfamilysize=readfamilysize,
-                   AmpliconBed=AmpliconBed,
                    CoverageBed=CoverageBed,
                    OutputDir=OutputDir,
                    SubDir=samples[1] + '_' + samples[0],
@@ -118,7 +109,6 @@ workflow MyeloseqHD {
                    BamIndex=dragen_align.bai,
                    DragenVcf=dragen_align.vcf,
                    DragenVcfIndex=dragen_align.index,
-                   CoverageBed=CoverageBed,
                    refFasta=Reference,
                    ReferenceDict=ReferenceDict,
                    Name=samples[1],
@@ -131,15 +121,8 @@ workflow MyeloseqHD {
                    RunInfoString=RunInfoString,
                    VariantDB=VariantDB,
                    Vepcache=VEP,
-                   AmpliconBed=AmpliconBed,
-                   CustomAnnotationVcf=CustomAnnotationVcf,
-                   CustomAnnotationIndex=CustomAnnotationIndex,
-                   CustomAnnotationParameters=CustomAnnotationParameters,
-                   GenotypeVcf=GenotypeVcf,
                    MinReads=MinReads,
                    MinVaf=MinVaf,
-                   HaplotectBed=HaplotectBed,
-                   QcMetrics=QcMetrics,
                    MyeloSeqHDRepo=MyeloSeqHDRepo,
                    OutputDir=OutputDir,
                    SubDir=samples[1] + '_' + samples[0],
@@ -153,13 +136,6 @@ workflow MyeloseqHD {
             input: order_by=MyeloseqHDAnalysis.all_done,
             Batch=basename(OutputDir),
             DemuxFastqDir=DemuxFastqDir,
-            queue=DragenQueue,
-            jobGroup=JobGroup
-        }
-
-        call remove_rundir {
-            input: order_by=MyeloseqHDAnalysis.all_done,
-            rundir=IlluminaDir,
             queue=DragenQueue,
             jobGroup=JobGroup
         }
@@ -262,7 +238,7 @@ task prepare_samples {
                  close SS;' > sample_sheet.txt
      >>>
      runtime {
-         docker_image: "docker1(registry.gsc.wustl.edu/genome/lims-compute-xenial:1)"
+         docker_image: "docker1(ubuntu:xenial)"
          cpu: "1"
          memory: "4 G"
          queue: queue
@@ -293,7 +269,7 @@ task trim_adapters {
      }
 
      runtime {
-         docker_image: "docker1(registry.gsc.wustl.edu/fdu/cutadapt:1)"
+         docker_image: "docker1(dhspence/docker-cutadapt:latest)"
          cpu: "1"
          memory: "8 G"
          queue: queue
@@ -315,7 +291,6 @@ task dragen_align {
          String RG
          String SM
          String LB
-         String AmpliconBed
          String CoverageBed
          String OutputDir
          String SubDir
@@ -374,7 +349,6 @@ task dragen_align {
      }
 }
 
-
 task move_demux_fastq {
      input{
          Array[String] order_by
@@ -417,30 +391,8 @@ task batch_qc {
          /usr/bin/perl ${QC_pl} ${BatchDir}
      }
      runtime {
-         docker_image: "docker1(registry.gsc.wustl.edu/mgi-cle/myeloseqhd:v2)"
+         docker_image: "docker1(mgibio/myeloseqhd:v2)"
          memory: "4 G"
-         queue: queue
-         job_group: jobGroup
-     }
-     output {
-         String done = stdout()
-     }
-}
-
-task remove_rundir {
-     input {
-         Array[String] order_by
-         String? rundir
-         String queue
-         String jobGroup
-     }
-     command {
-         if [ -d "${rundir}" ]; then
-             /bin/rm -Rf ${rundir}
-         fi
-     }
-     runtime {
-         docker_image: "docker1(ubuntu:xenial)"
          queue: queue
          job_group: jobGroup
      }
@@ -466,7 +418,7 @@ task data_transfer {
          fi
      }
      runtime {
-         docker_image: "docker1(registry.gsc.wustl.edu/dataxfer/data-transfer-helper)"
+         docker_image: "docker1(mgibio/data-transfer-helper:v1)"
          memory: "8 G"
          queue: queue
          job_group: jobGroup

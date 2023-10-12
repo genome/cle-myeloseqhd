@@ -36,7 +36,7 @@ my $json_template = File::Spec->join($git_dir, 'MyeloseqHD.json');
 
 my $group  = '/cle/wdl/haloplex';
 my $queue  = 'dspencer';
-my $docker = 'registry.gsc.wustl.edu/apipe-builder/genome_perl_environment:compute1-20';
+my $docker = 'mgibio/genome_perl_environment:compute1-20';
 
 my $user_group = 'compute-duncavagee';
 
@@ -69,7 +69,7 @@ for my $row ($sheet->rows()) {
     unless ($row->[0] =~ /\d+/) {
         die "Lane number is expected, Check sample sheet spreadsheet";
     }
-    my ($lane, $flowcell, $lib, $index_str, $exception) = @$row;
+    my ($lane, $flowcell, $name, $index_str, $exception) = @$row;
 
     if ($exception) {
         $exception =~ s/^\s+//;
@@ -80,52 +80,44 @@ for my $row ($sheet->rows()) {
     }
 
     if ($exception and $exception =~ /NOTRANSFER/ and $exception =~ /RESEQ/) {
-        die "$lib has both NOTRANSFER and RESEQ as exception and only one is allowed.";
+        die "$name has both NOTRANSFER and RESEQ as exception and only one is allowed.";
     }
 
-    $lib =~ s/\s+//g;
-    my ($sample, $mrn, $accession) = $lib =~ /^([A-Z]{4}\-(\d+)\-([A-Z]\d+\-\d+)\-[A-Z0-9]+)\-lib/;
+    $name =~ s/\s+//g;
+    #my ($sample, $mrn, $accession) = $lib =~ /^([A-Z]{4}\-(\d+)\-([A-Z]\d+\-\d+)\-[A-Z0-9]+)\-lib/;
     #my $id = $lib =~ /^H_|Research/ ? 'NONE' : $mrn.'_'.$accession;
-    my $id = ($exception and $exception =~ /RESEQ|RESEARCH|NOTRANSFER/) ? 'NONE' : $mrn.'_'.$accession;
+    #($sample) = $lib =~ /^(\S+)\-lib/ if $lib =~ /^H_|Research|Clinical|Positive\-Control/;
 
-    ($sample) = $lib =~ /^(\S+)\-lib/ if $lib =~ /^H_|Research|Clinical|Positive\-Control/;
+    my ($lib, $mrn, $accession, $sex, $DOB, $all_MRNs);
 
-    unless ($id eq 'NONE') {
-        unless ($mrn and $accession) {
-            die "Library name: $lib must contain MRN, accession id and specimen type";
-        }
-
-        unless ((length($mrn) == 10 and $mrn =~ /^99/) or (length($mrn) == 9 and $mrn =~ /^(1|2)/)) {
-            die "$lib has invalid MRN: $1  MRN must be either a 10-digit number starting with 99 or a 9-digit number starting with 1i or 2";
-        }
-
-        unless (exists $hash{$id}) {
-            die "FAIL to find matching $mrn and $accession from CoPath dump for library: $lib";
-        }
-    }
-
-    my ($sex, $DOB, $all_MRNs);
-    if ($id eq 'NONE') {
+    if ($exception and $exception =~ /RESEQ|RESEARCH|NOTRANSFER/) {
         if ($exception =~ /RESEQ/) {
-            my $all_id = $mrn.'_'.$accession;
-            unless (exists $all_hash{$all_id}) {
-                die "For RESEQ $lib its MRN and accession can not be found in CoPath daily all_accession log";
-            }
-            $sex = $all_hash{$all_id}->{sex};
-            $DOB = $all_hash{$all_id}->{DOB};
-            $all_MRNs = $all_hash{$all_id}->{all_MRNs};
+            ($accession) = $name =~ /^(W\d+\-\d+)/;
+            die "Fail to get accession number from $name" unless $accession;
+            die "Fail to get info from CoPath daily All log for RESEQ: $name" unless exists $all_hash{$accession};
+            ($mrn, $sex, $DOB, $all_MRNs) = map{$all_hash{$accession}->{$_}}qw(MRN sex DOB all_MRNs);
+            $lib = join '-', 'TWAO', $mrn, $name, 'lib1';
         }
-        else { #NOTRANSFER  RESEARCH  They will skip query_DB and upload_DB tasks in WF
+        else {
+            $lib = $name;
+            unless ($lib =~ /^TW/) {
+                my $prefix = 'TWAO-';
+                if ($exception =~ /RESEARCH/) {
+                    $prefix .= 'Research-' unless $lib =~ /RESEARCH/i;
+                }
+                $lib = $prefix.$lib;
+            }
+            $lib = $lib.'-lib1' unless $lib =~ /\-lib/;
+            #NOTRANSFER  RESEARCH  They will skip query_DB and upload_DB tasks in WF
             ($mrn, $accession, $sex, $DOB, $all_MRNs) = ('NONE') x 5;
         }
     }
     else {
-        $sex = $hash{$id}->{sex};
-        $DOB = $hash{$id}->{DOB};
-        $all_MRNs = $hash{$id}->{all_MRNs};
-        unless ($sex eq 'male' or $sex eq 'female') {
-            die "Unknown gender: $sex for library: $lib";
-        }
+        ($accession) = $name =~ /^(W\d+\-\d+)/;
+        die "Fail to get accession number from $name" unless $accession;
+        die "Fail to get info from CoPath daily Active log for $name" unless exists $hash{$accession};
+        ($mrn, $sex, $DOB, $all_MRNs) = map{$hash{$accession}->{$_}}qw(MRN sex DOB all_MRNs);
+        $lib = join '-', 'TWAO', $mrn, $name, 'lib1';
     }
 
     my ($index) = $index_str =~ /([ATGC]{8})AT\-AAAAAAAAAA/;
@@ -140,6 +132,8 @@ for my $row ($sheet->rows()) {
     else {
         $exception = 'NONE';
     }
+
+    my ($sample) = $lib =~ /^(\S+)\-lib/;
 
     $ds_str .= join ',', $lane, $lib, $lib, '', $index, '';
     $ds_str .= "\n";
@@ -156,34 +150,41 @@ unless (-s $run_xml) {
 }
 my $xml_fh = IO::File->new($run_xml) or die "Fail to open $run_xml";
 my ($runid, $R1cycle, $R2cycle, $index1cycle, $index2cycle, $fcmode, $wftype, $instr, $side);
+my $fctype = 0;
 
 while (my $line = $xml_fh->getline) {
     if ($line =~ /<RunId>(\S+)<\/RunId>/) {
         $runid = $1;
     }
-    elsif ($line =~ /<Read1NumberOfCycles>(\d+)<\/Read1NumberOfCycles>/) {
+    elsif ($line =~ / ReadName="Read1" Cycles="(\d+)" /) {
         $R1cycle = $1;
     }
-    elsif ($line =~ /<Read2NumberOfCycles>(\d+)<\/Read2NumberOfCycles>/) {
+    elsif ($line =~ / ReadName="Read2" Cycles="(\d+)" /) {
         $R2cycle = $1;
     }
-    elsif ($line =~ /<IndexRead1NumberOfCycles>(\d+)<\/IndexRead1NumberOfCycles>/) {
+    elsif ($line =~ / ReadName="Index1" Cycles="(\d+)" /) {
         $index1cycle = $1;
     }
-    elsif ($line =~ /<IndexRead2NumberOfCycles>(\d+)<\/IndexRead2NumberOfCycles>/) {
+    elsif ($line =~ / ReadName="Index2" Cycles="(\d+)" /) {
         $index2cycle = $1;
     }
-    elsif ($line =~ /<FlowCellMode>(\S+)<\/FlowCellMode>/) {
-        $fcmode = $1;
-    }
-    elsif ($line =~ /<WorkflowType>(\S+)<\/WorkflowType>/) {
+    elsif ($line =~ /<InstrumentType>(\S+)<\/InstrumentType>/) {
         $wftype = $1;
     }
-    elsif ($line =~ /<InstrumentName>(\S+)<\/InstrumentName>/) {
+    elsif ($line =~ /<InstrumentSerialNumber>(\S+)<\/InstrumentSerialNumber>/) {
         $instr = $1;
     }
     elsif ($line =~ /<Side>(\S+)<\/Side>/) {
         $side = $1;
+    }
+    elsif ($line =~ /<Type>FlowCell<\/Type>/) {
+        $fctype = 1;
+    }
+    if ($fctype) {
+        if ($line =~ /<Mode>(\S+)<\/Mode>/) {
+            $fcmode = $1;
+            $fctype = 0;
+        }
     }
 }
 $xml_fh->close;
@@ -262,7 +263,7 @@ sub get_info_hash {
         $l =~ s/\r//g;
 
         my @columns = split /,/, $l;
-        my $id  = $columns[2].'_'.$columns[0];
+        my $id = $columns[0];
         my $all_MRNs = $columns[8];
         $all_MRNs =~ s/\|/,/g;
         my $sex = $columns[4];
@@ -279,6 +280,7 @@ sub get_info_hash {
         }
 
         $info_hash{$id} = {
+            MRN => $columns[2],
             DOB => $columns[5],
             sex => $sex,
             all_MRNs => $all_MRNs,

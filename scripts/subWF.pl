@@ -33,7 +33,7 @@ my $json_template = File::Spec->join($git_dir, 'MyeloseqHDAnalysis.json');
 
 my $group  = '/cle/wdl/haloplex';
 my $queue  = 'dspencer';
-my $docker = 'registry.gsc.wustl.edu/apipe-builder/genome_perl_environment:compute1-20';
+my $docker = 'mgibio/genome_perl_environment:compute1-20';
 
 my $user_group = 'compute-gtac-mgi';
 

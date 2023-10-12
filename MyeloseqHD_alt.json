@@ -12,7 +12,7 @@
     "MyeloseqHD.MyeloSeqHDRepo":"/storage1/fs1/duncavagee/Active/SEQ/MyeloSeqHD/process/git/cle-myeloseqhd",
     "MyeloseqHD.DragenEnv":"LSF_DOCKER_DRAGEN=y",
     "MyeloseqHD.DragenDockerImage":"gtac-mgi-dragen(seqfu/oracle8-dragen-4.0.3:latest)",
-    "MyeloseqHD.DragenQueue":"dragen",
+    "MyeloseqHD.DragenQueue":"dragen-4",
     "MyeloseqHD.Queue":"dspencer",
     "MyeloseqHD.JobGroup":"/cle/wdl/haloplex"
 }

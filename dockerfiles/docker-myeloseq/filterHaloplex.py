@@ -528,7 +528,7 @@ for vline in vcffile.fetch(reopen=True):
         # if the variant does exist in the database and there are fewer than minreads or the variant wasnt called then set minreads to 0 because <minreads is below the validated threshold.
         if (ao < minreads or len(callers)==0) and 'MyeloSeqHDDB' in rec.info.keys():
             ao = 0
-            rawvaf = round(ao / (ao + ro),4)
+            rawvaf = 0 
 
         # min vaf filter
         if rawvaf < minvaf:
