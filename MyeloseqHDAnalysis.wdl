@@ -20,12 +20,12 @@ workflow MyeloseqHDAnalysis {
         String HaplotectBed = MyeloSeqHDRepo + "/accessory_files/MyeloseqHD.haplotect.bed"
         String AmpliconBed  = MyeloSeqHDRepo + "/accessory_files/MyeloseqHD.amplicons.bed"
         String CoverageBed  = MyeloSeqHDRepo + "/accessory_files/MyeloseqHD.CoverageQC.hg38.bed"
+        String GenotypeVcf  = MyeloSeqHDRepo + "/accessory_files/MyeloseqHD.forcegenotype.vcf.gz"
         String QcMetrics    = MyeloSeqHDRepo + "/accessory_files/MyeloseqHD.QCMetrics.json"
         String CustomAnnotationVcf   = MyeloSeqHDRepo + "/accessory_files/MyeloseqHD.custom_annotations.vcf.gz"
         String CustomAnnotationIndex = MyeloSeqHDRepo + "/accessory_files/MyeloseqHD.custom_annotations.vcf.gz.tbi"
         String CustomAnnotationParameters = "MYELOSEQ,vcf,exact,0,TCGA_AC,MDS_AC,BLACKLIST"
 
-        String? GenotypeVcf
         Int MinReads
         Float MinVaf
 
@@ -99,7 +99,7 @@ workflow MyeloseqHDAnalysis {
     }
 
     call combine_variants {
-        input: Vcfs=select_all([DragenVcf,clean_pindel_region.cleaned_vcf_file,clean_queryDB_vcf.cleaned_vcf_file,GenotypeVcf]),
+        input: Vcfs=[DragenVcf,clean_pindel_region.cleaned_vcf_file,clean_queryDB_vcf.cleaned_vcf_file,GenotypeVcf],
                Cram=convert_bam.cram,
                CramIndex=convert_bam.crai,
                refFasta=refFasta,
@@ -208,7 +208,7 @@ task convert_bam {
      >>>
 
      runtime {
-         docker_image: "docker1(registry.gsc.wustl.edu/mgi-cle/myeloseqhd:v2)"
+         docker_image: "docker1(mgibio/myeloseqhd:v2)"
          cpu: "1"
          memory: "24 G"
          queue: queue
@@ -246,7 +246,7 @@ task run_pindel_region {
      >>>
 
      runtime {
-         docker_image: "docker1(registry.gsc.wustl.edu/mgi-cle/pindel2vcf-0.6.3:1)"
+         docker_image: "docker1(mgibio/pindel2vcf-0.6.3:1)"
          cpu: "1"
          memory: "16 G"
          queue: queue
@@ -270,7 +270,7 @@ task bgzip_tabix {
          /usr/bin/tabix -p vcf ${Name}.bgzip_tabix.vcf.gz
      }
      runtime {
-         docker_image: "docker1(registry.gsc.wustl.edu/mgi-cle/myeloseqhd:v2)"
+         docker_image: "docker1(mgibio/myeloseqhd:v2)"
          cpu: "1"
          memory: "8 G"
          queue: queue
@@ -299,7 +299,7 @@ task clean_variants {
      }
 
      runtime {
-         docker_image: "docker1(registry.gsc.wustl.edu/mgi-cle/myeloseqhd:v2)"
+         docker_image: "docker1(mgibio/myeloseqhd:v2)"
          cpu: "1"
          memory: "16 G"
          queue: queue
@@ -334,7 +334,7 @@ task combine_variants {
      }
 
      runtime {
-         docker_image: "docker1(registry.gsc.wustl.edu/mgi-cle/myeloseqhd:v2)"
+         docker_image: "docker1(mgibio/myeloseqhd:v2)"
          cpu: "1"
          memory: "10 G"
          queue: queue
@@ -377,7 +377,7 @@ task run_vep {
          fi
      }
      runtime {
-         docker_image: "docker1(registry.gsc.wustl.edu/mgi-cle/vep105-htslib1.9:1)"
+         docker_image: "docker1(mgibio/vep105-htslib1.9:1)"
          cpu: "1"
          memory: "10 G"
          queue: queue
@@ -413,7 +413,7 @@ task run_haplotect {
     >>>
 
      runtime {
-         docker_image: "docker1(registry.gsc.wustl.edu/mgi-cle/haplotect:0.3)"
+         docker_image: "docker1(abelhj/haplotect:0.3)"
          cpu: "1"
          memory: "8 G"
          queue: queue
@@ -454,7 +454,7 @@ task make_report {
          /bin/mv ./*.report.txt ./*.report.json ${SampleOutDir}
      }
      runtime {
-         docker_image: "docker1(registry.gsc.wustl.edu/mgi-cle/myeloseqhd:v2)"
+         docker_image: "docker1(mgibio/myeloseqhd:v2)"
          cpu: "1"
          memory: "16 G"
          queue: queue
@@ -482,7 +482,7 @@ task gather_files {
          /bin/mv -f -t ${OutputDir}/${SubDir} ${sep=" " OutputFiles}
      }
      runtime {
-         docker_image: "docker1(registry.gsc.wustl.edu/genome/lims-compute-xenial:1)"
+         docker_image: "docker1(ubuntu:xenial)"
          queue: queue
          job_group: jobGroup
      }
@@ -506,7 +506,7 @@ task upload_DB {
          /usr/bin/python3 /usr/local/bin/variantDB.py -d ${VariantDB} -v ${Vcf} -c ${CoverageBed} -i ${mrn} -j ${accession}
      }
      runtime {
-         docker_image: "docker1(registry.gsc.wustl.edu/mgi-cle/myeloseqhd:v2)"
+         docker_image: "docker1(mgibio/myeloseqhd:v2)"
          memory: "4 G"
          queue: queue
          job_group: jobGroup
@@ -529,7 +529,7 @@ task query_DB {
          /usr/bin/python3 /usr/local/bin/variantDB.py -d ${VariantDB} -m ${mrn} -a ${accession}
      }
      runtime {
-         docker_image: "docker1(registry.gsc.wustl.edu/mgi-cle/myeloseqhd:v2)"
+         docker_image: "docker1(mgibio/myeloseqhd:v2)"
          memory: "4 G"
          queue: queue
          job_group: jobGroup
