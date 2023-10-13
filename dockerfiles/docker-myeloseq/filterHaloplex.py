@@ -503,7 +503,12 @@ for vline in vcffile.fetch(reopen=True):
 
             ro = rec.samples[0]['AD'][0]
             ao = rec.samples[0]['AD'][1]
-            rawvaf = round(ao / (ao + ro),4) #rec.samples[0]['AF'][0]
+
+            if ao + ro == 0:
+                rawvaf = 0
+            else:
+                rawvaf = round(ao / (ao + ro),4) #rec.samples[0]['AF'][0]
+
             for v in rec.filter.keys():
                 nrec.filter.add(v) 
 
