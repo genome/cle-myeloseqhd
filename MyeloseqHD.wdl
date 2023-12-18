@@ -32,7 +32,7 @@ workflow MyeloseqHD {
 
         Array[String] Adapters = ["GATCGGAAGAGCACACGTCTGAACTCCAGTCAC","AGATCGGAAGAGCGTCGTGTAGGGAAA"]
 
-        String DragenReference = "/storage1/fs1/gtac-mgi/Active/CLE/reference/dragen_hg38"
+        String DragenReference = "/storage1/fs1/gtac-mgi/Active/CLE/reference/dragen424_hg38"
         String Reference       = "/storage1/fs1/duncavagee/Active/SEQ/Chromoseq/process/refdata/hg38/all_sequences.fa"
         String ReferenceDict   = "/storage1/fs1/duncavagee/Active/SEQ/Chromoseq/process/refdata/hg38/all_sequences.dict"
         String VEP             = "/storage1/fs1/gtac-mgi/Active/CLE/reference/VEP_cache"

@@ -11,7 +11,7 @@
     "MyeloseqHD.VariantDB":"/storage1/fs1/gtac-mgi/Active/CLE/validation/cle_validation/CLE_variant_database/myeloseqhd/myeloseqhd_variants.sqlite",
     "MyeloseqHD.MyeloSeqHDRepo":"/storage1/fs1/duncavagee/Active/SEQ/MyeloSeqHD/process/git/cle-myeloseqhd",
     "MyeloseqHD.DragenEnv":"LSF_DOCKER_DRAGEN=y",
-    "MyeloseqHD.DragenDockerImage":"gtac-mgi-dragen(seqfu/oracle8-dragen-4.0.3:latest)",
+    "MyeloseqHD.DragenDockerImage":"gtac-mgi-dragen(etycksen/dragen4:4.2.4)",
     "MyeloseqHD.DragenQueue":"dragen-2",
     "MyeloseqHD.Queue":"dspencer",
     "MyeloseqHD.JobGroup":"/cle/wdl/haloplex"
