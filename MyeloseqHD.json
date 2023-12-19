@@ -5,7 +5,7 @@
     "MyeloseqHD.SampleSheet":"PATH",
     "MyeloseqHD.RunInfoString":"INFO",
     "MyeloseqHD.CasesExcluded":"INFO",
-    "MyeloseqHD.DataTransfer":"true",
+    "MyeloseqHD.DataTransfer":"false",
     "MyeloseqHD.MinReads":5,
     "MyeloseqHD.MinVaf":0.02,
     "MyeloseqHD.VariantDB":"/storage1/fs1/gtac-mgi/Active/CLE/validation/cle_validation/CLE_variant_database/myeloseqhd/myeloseqhd_variants.sqlite",
